@@ -4,6 +4,7 @@ build/
 *.aplx
 .idea
 *.orig
+CMakeLists.txt.user
 
 # Prerequisites
 *.d
