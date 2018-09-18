@@ -24,8 +24,7 @@ from spinn_front_end_common.abstract_models.\
 from spinn_front_end_common.interface.buffer_management \
     import recording_utilities
 
-
-from pf_spinn import constants as app_constants
+import constants as app_constants
 
 import numpy
 from enum import Enum

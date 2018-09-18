@@ -14,13 +14,13 @@ import spinnaker_graph_front_end as front_end
 # import graph components
 from pacman.model.graphs.machine import MachineEdge
 # import for binary location
-from pf_spinn import binaries
+import binaries
 # constants
-from pf_spinn import constants
-from pf_spinn.ICUB_input_vertex.ICUB_input_vertex import ICUBInputVertex
-from pf_spinn.ICUB_output_vertex.ICUB_output_vertex import ICUBOutputVertex
-from pf_spinn.pf_fullparticle.pf_fullparticle_vertex import PfFullParticleVertex
-from pf_spinn.roi_filter.roi_filter_vertex import RetinaFilter
+import constants
+from ICUB_input_vertex.ICUB_input_vertex import ICUBInputVertex
+from ICUB_output_vertex.ICUB_output_vertex import ICUBOutputVertex
+from pf_fullparticle.pf_fullparticle_vertex import PfFullParticleVertex
+from roi_filter.roi_filter_vertex import RetinaFilter
 from process_and_plot import processAndPlot
 from read_dataset import load_vbottle
 from read_dataset import load_spike_train

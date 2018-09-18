@@ -9,7 +9,7 @@ from spinn_front_end_common.abstract_models.\
     abstract_provides_outgoing_partition_constraints import \
     AbstractProvidesOutgoingPartitionConstraints
 from spinn_utilities.overrides import overrides
-from pf_spinn import constants
+import constants
 
 
 class ICUBInputVertex(
