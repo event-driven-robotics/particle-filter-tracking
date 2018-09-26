@@ -529,7 +529,6 @@ void particle_filter_update_step(uint do_p2p, uint do_calc) {
     //do final tasks
     send_roi();
     send_position_out();
-    //load_particle_into_next_array();
 
     tried_to_call_proc_done = true;
     if(!spin1_schedule_callback(ready_to_send, 1, my_p2p_id == 0, SEND)) {

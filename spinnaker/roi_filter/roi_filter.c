@@ -14,6 +14,8 @@
 #define X_MASK(x) (x>>1)&0x1FF
 #define Y_MASK(y) (y>>12)&0xFF
 
+#define LOG_COUNTER_PERIOD 1000000
+
 //! control value, which says how many timer ticks to run for before exiting
 static uint32_t simulation_ticks = 0;
 static uint32_t infinite_run = 0;
@@ -140,8 +142,8 @@ void update(uint ticks, uint b) {
     }
 
     if(time*timer_period  >= log_counter) {
-        log_counter += 1000000;
-        log_debug("Received = %d | Processed = %d | Period 1s | 0x%08x | 0x%08x",
+        log_counter += LOG_COUNTER_PERIOD;
+        log_info("Received = %d | Processed = %d | Period 1s | 0x%08x | 0x%08x",
             received_count, events_processed, example_key, base_key);
         events_processed = 0;
         received_count = 0;
