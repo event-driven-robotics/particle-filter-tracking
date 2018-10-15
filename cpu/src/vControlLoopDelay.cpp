@@ -91,9 +91,12 @@ void delayControl::setResetTimeout(double value)
     resetTimeout = value;
 }
 
-void delayControl::performReset()
+void delayControl::performReset(int x, int y, int r)
 {
+    if(x > 0)
+        vpf.setSeed(x, y, r);
     vpf.resetToSeed();
+    inputPort.resume();
 }
 
 yarp::sig::Vector delayControl::getTrackingStats()
@@ -138,6 +141,11 @@ void delayControl::onStop()
     //scopePort.close();
     debugPort.close();
     //inputPort.releaseDataLock();
+}
+
+void delayControl::pause()
+{
+    inputPort.interrupt();
 }
 
 void delayControl::run()

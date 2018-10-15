@@ -89,7 +89,7 @@ public:
     void initFilter(int width, int height, int nparticles,
                     int bins, bool adaptive, int nthreads,
                     double minlikelihood, double inlierThresh, double randoms, double negativeBias);
-    void performReset();
+    void performReset(int x = -1, int y = -1, int r = -1);
     void setFilterInitialState(int x, int y, int r);
 
     void setMinRawLikelihood(double value);
@@ -107,6 +107,7 @@ public:
     yarp::sig::Vector getTrackingStats();
 
     //bool threadInit();
+    void pause();
     void onStop();
     void run();
     //void threadRelease();

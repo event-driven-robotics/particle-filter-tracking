@@ -140,7 +140,8 @@ double module::getPeriod()
 
 #define CMD_HELP  createVocab('h', 'e', 'l', 'p')
 #define CMD_SET   createVocab('s', 'e', 't')
-#define CMD_RESET createVocab('r', 'e', 's')
+#define CMD_START createVocab('s', 't', 'a', 'r')
+#define CMD_STOP  createVocab('s', 't', 'o', 'p')
 
 bool module::respond(const yarp::os::Bottle& command,
                                 yarp::os::Bottle& reply) {
@@ -223,10 +224,24 @@ bool module::respond(const yarp::os::Bottle& command,
         }
         break;
     }
-    case CMD_RESET:
+    case CMD_STOP:
     {
-        reply.addString("resetting particle positions");
-        delaycontrol.performReset();
+        reply.addString("tracking paused");
+        delaycontrol.pause();
+        break;
+    }
+    case CMD_START:
+    {
+        if(command.size() == 4) {
+            int x = command.get(1).asInt();
+            int y = command.get(2).asInt();
+            int r = command.get(3).asInt();
+            reply.addString("resetting particle positions to custom positions");
+            delaycontrol.performReset(x, y, r);
+        } else {
+            reply.addString("resetting particle positions to seed");
+            delaycontrol.performReset();
+        }
         break;
     }
     default:
