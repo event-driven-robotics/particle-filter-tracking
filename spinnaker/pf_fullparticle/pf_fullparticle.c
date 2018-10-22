@@ -34,7 +34,7 @@
 #define INLIER_PAR_PLUS1 2.0k
 #define INV_INLIER_PAR 1.0k
 #define MIN_LIKE 12.8k //64 * 0.2k
-#define SIGMA 2.0k
+#define SIGMA 3.0k
 #define DIV_VALUE 5000
 #define EVENT_WINDOW_SIZE 256
 #define RETINA_BUFFER_SIZE 4096
@@ -411,7 +411,7 @@ void calculate_likelihood() {
     //load in new data
     //uint cpsr = spin1_int_disable();
     uint32_t num_new_events = circular_buffer_size(retina_buffer);
-    uint32_t max_batch_size = (uint32_t)(2.0k * K_PI * r + 0.5k);
+    uint32_t max_batch_size = (uint32_t)(4.0k * K_PI * r + 0.5k);
     max_batch_size = max_batch_size > EVENT_WINDOW_SIZE ? EVENT_WINDOW_SIZE : max_batch_size;
 
     uint32_t this_batch_size = num_new_events > max_batch_size ? max_batch_size : num_new_events;
@@ -597,7 +597,7 @@ void update(uint ticks, uint b) {
         log_counter += LOG_COUNTER_PERIOD;
         float avg_period = 1000.0f/(float)update_count;
 
-        log_info("Update: %d Hz / %d.%d%d ms | Events: %d/%d "
+        log_debug("Update: %d Hz / %d.%d%d ms | Events: %d/%d "
             "(%d drop / %d non-pc'd / %d over-pc'd / %d avg-delay)",
             update_count, (int)avg_period, (int)(avg_period*10)%10,
             (int)(avg_period*100)%10, events_processed, received_count,

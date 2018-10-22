@@ -143,7 +143,7 @@ void update(uint ticks, uint b) {
 
     if(time*timer_period  >= log_counter) {
         log_counter += LOG_COUNTER_PERIOD;
-        log_info("Received = %d | Processed = %d | Period 1s | 0x%08x | 0x%08x",
+        log_debug("Received = %d | Processed = %d | Period 1s | 0x%08x | 0x%08x",
             received_count, events_processed, example_key, base_key);
         events_processed = 0;
         received_count = 0;
