@@ -15,7 +15,7 @@ from spinn_front_end_common.abstract_models.impl import \
 from spinn_front_end_common.interface.simulation import simulation_utilities
 from spinn_front_end_common.utilities import constants
 from spinn_front_end_common.utilities.utility_objs import ExecutableType
-import constants as app_constants
+import helpers.constants as app_constants
 
 
 class RetinaFilter(

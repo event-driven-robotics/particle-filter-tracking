@@ -4,13 +4,18 @@ ifndef SPINN_DIRS
 endif
 
 APP = pf_fullparticle
-BUILD_DIR = build/
 SOURCES = pf_fullparticle.c
+APP_OUTPUT_DIR = ../cbin/
 
-MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
-CURRENT_DIR := $(dir $(MAKEFILE_PATH))
-SOURCE_DIR := $(abspath $(CURRENT_DIR))
-SOURCE_DIRS += $(SOURCE_DIR)
-APP_OUTPUT_DIR := $(abspath $(CURRENT_DIR))/../binaries/
+SOURCE_DIRS = src/
+MODIFIED_DIR = modified_src/
+BUILD_DIR = build/
 
-include $(SPINN_DIRS)/make/Makefile.SpiNNFrontEndCommon
+
+#MAKEFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+#CURRENT_DIR := $(dir $(MAKEFILE_PATH))
+#SOURCE_DIR := $(abspath $(CURRENT_DIR))
+#SOURCE_DIRS += $(SOURCE_DIR)
+#APP_OUTPUT_DIR := $(abspath $(CURRENT_DIR))/../binaries/
+
+include $(SPINN_DIRS)/make/local.mk

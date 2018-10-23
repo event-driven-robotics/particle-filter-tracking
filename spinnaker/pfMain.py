@@ -14,16 +14,16 @@ import spinnaker_graph_front_end as front_end
 # import graph components
 from pacman.model.graphs.machine import MachineEdge
 # import for binary location
-import binaries
+import cbin
 # constants
-import constants
+from helpers import constants
 from ICUB_input_vertex.ICUB_input_vertex import ICUBInputVertex
 from ICUB_output_vertex.ICUB_output_vertex import ICUBOutputVertex
 from pf_fullparticle.pf_fullparticle_vertex import PfFullParticleVertex
 from roi_filter.roi_filter_vertex import RetinaFilter
-from process_and_plot import processAndPlot
-from read_dataset import load_vbottle
-from read_dataset import load_spike_train
+from helpers.process_and_plot import processAndPlot
+from helpers.read_dataset import load_vbottle
+from helpers.read_dataset import load_spike_train
 
 from spinn_front_end_common.utility_models. \
     reverse_ip_tag_multicast_source_machine_vertex import \
@@ -59,7 +59,7 @@ if not use_spinn_link:
 
 
 front_end.setup(n_chips_required=n_chips_required,
-                model_binary_module=binaries,
+                model_binary_module=cbin,
                 machine_time_step=machine_time_step)
 
 # VERTICES
