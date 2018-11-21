@@ -40,8 +40,8 @@
 #define RETINA_BUFFER_SIZE 4096
 #define TARGET_ELEMENTS 3
 #define SAVE_VECTOR_ELEMENTS TARGET_ELEMENTS
-#define MAX_RADIUS 40.0k
-#define MIN_RADIUS 10.0k
+#define MAX_RADIUS 60.0k
+#define MIN_RADIUS 30.0k
 #define MAX_RADIUS_PLUS2 42
 #define MAX_RADIUS_PLUS2_SQRD 1764
 #define K_PI 3.14159265359k
@@ -381,9 +381,9 @@ void predict(float sigma) {
 
     x += 2.0k * sigma * MY_RAND - sigma;
     y += 2.0k * sigma * MY_RAND - sigma;
-    r += 0.2k * (2.0k * sigma * MY_RAND - sigma);
+    r += 0.4k * (2.0k * sigma * MY_RAND - sigma);
 
-    if(r < 10.0k)      r = 10.0k;
+    if(r < MIN_RADIUS)      r = MIN_RADIUS;
     if(r > MAX_RADIUS)      r = MAX_RADIUS;
     if(x < 0.0k)      x = 0.0k;
     if(x > 304.0k)   x = 304.0k;
