@@ -71,6 +71,7 @@ bool module::configure(yarp::os::ResourceFinder &rf)
 
     //filter paramters
     int particles = rf.check("particles", yarp::os::Value(100)).asInt();
+    int batch_size = rf.check("batch", Value(0)).asInt();
     double nRandResample = rf.check("randoms", yarp::os::Value(0.0)).asDouble();
 
     yarp::os::Bottle * seed = rf.find("seed").asList();
@@ -92,7 +93,8 @@ bool module::configure(yarp::os::ResourceFinder &rf)
     //delaycontrol.setMinRawLikelihood(minlikelihood);
 
     delaycontrol.initFilter(width, height, particles, bins, adaptivesampling,
-                            nthread, minlikelihood, inlierParameter, nRandResample, negativeBias);
+                            nthread, minlikelihood, inlierParameter, nRandResample,
+                            negativeBias, batch_size);
     if(seed && seed->size() == 3) {
         yInfo() << "Setting initial seed state:" << seed->toString();
         delaycontrol.setFilterInitialState(seed->get(0).asDouble(), seed->get(1).asDouble(), seed->get(2).asDouble());

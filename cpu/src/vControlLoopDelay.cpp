@@ -24,13 +24,15 @@
 
 void delayControl::initFilter(int width, int height, int nparticles, int bins,
                               bool adaptive, int nthreads, double minlikelihood,
-                              double inlierThresh, double randoms, double negativeBias)
+                              double inlierThresh, double randoms, double negativeBias,
+                              int batch_size)
 {
     vpf.initialise(width, height, nparticles, bins, adaptive, nthreads,
                    minlikelihood, inlierThresh, randoms, negativeBias);
 
     res.height = height;
     res.width = width;
+    this->batch_size = batch_size;
 }
 
 void delayControl::setMinRawLikelihood(double value)
@@ -161,7 +163,10 @@ void delayControl::run()
     yarp::os::Stamp ystamp;
     double stagnantstart = 0;
     int channel;
-    qROI.setSize(50.0);
+    if(batch_size)
+        qROI.setSize(batch_size);
+    else
+        qROI.setSize(50);
 
     //START HERE!!
     const vQueue *q = inputPort.read(ystamp);
@@ -213,6 +218,9 @@ void delayControl::run()
         else
             currentstamp = (*q)[i]->stamp;
 
+        if(batch_size)
+            qROI.setSize(batch_size);
+
         //do our update!!
         //yarp::os::Time::delay(0.005);
         Tlikelihood = yarp::os::Time::now();
@@ -223,15 +231,17 @@ void delayControl::run()
         dx = avgx, dy = avgy, dr = avgr;
         vpf.extractTargetPosition(avgx, avgy, avgr);
         dx = avgx - dx; dy = avgy - dy; dr = avgr - dr;
-        double roisize = avgr * 1.4;
+        double roisize = avgr + 10;
         qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
 
         //set our new window #events
-        double nw; vpf.extractTargetWindow(nw);
-        if(qROI.q.size() - nw > 30)
-            qROI.setSize(std::max(nw, 50.0));
-        if(qROI.q.size() > 3000)
-            qROI.setSize(3000);
+        if(!batch_size) {
+            double nw; vpf.extractTargetWindow(nw);
+            if(qROI.q.size() - nw > 30)
+                qROI.setSize(std::max(nw, 50.0));
+            if(qROI.q.size() > 3000)
+                qROI.setSize(3000);
+        }
 
         //calculate the temporal window of the q
         double tw = qROI.q.front()->stamp - qROI.q.back()->stamp;

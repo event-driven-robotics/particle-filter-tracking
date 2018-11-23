@@ -49,6 +49,11 @@ double generateGaussianNoise(double mu, double sigma)
     return z0 * sigma + mu;
 }
 
+double generateUniformNoise(double mu, double sigma)
+{
+    return mu + rand() * (2.0 * sigma / RAND_MAX) - sigma;
+}
+
 void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, ev::vQueue &q,
                 int offsetx) {
 
@@ -229,9 +234,13 @@ void vParticle::resetArea()
 void vParticle::predict(double sigma)
 {
     //tw += 12500;
-    x = generateGaussianNoise(x, sigma);
-    y = generateGaussianNoise(y, sigma);
-    r = generateGaussianNoise(r, sigma * 0.2);
+//    x = generateGaussianNoise(x, sigma);
+//    y = generateGaussianNoise(y, sigma);
+//    r = generateGaussianNoise(r, sigma * 0.2);
+
+    x = generateUniformNoise(x, sigma);
+    y = generateUniformNoise(y, sigma);
+    r = generateUniformNoise(r, sigma * 0.2);
 
     if(constrain) checkConstraints();
 }

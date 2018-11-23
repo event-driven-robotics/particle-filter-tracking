@@ -69,6 +69,7 @@ private:
     int detectionThreshold;
     double resetTimeout;
     double motionVariance;
+    int batch_size;
 
     //diagnostics
     double filterPeriod;
@@ -88,7 +89,7 @@ public:
     bool open(std::string name, unsigned int qlimit = 0);
     void initFilter(int width, int height, int nparticles,
                     int bins, bool adaptive, int nthreads,
-                    double minlikelihood, double inlierThresh, double randoms, double negativeBias);
+                    double minlikelihood, double inlierThresh, double randoms, double negativeBias, int batch_size);
     void performReset(int x = -1, int y = -1, int r = -1);
     void setFilterInitialState(int x, int y, int r);
 
