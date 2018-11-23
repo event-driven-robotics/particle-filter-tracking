@@ -110,7 +110,7 @@ the_main_particle = None
 for x in range(0, n_particles):
     vertex = PfFullParticleVertex(
         x=constants.RETINA_X_SIZE/2, y=constants.RETINA_Y_SIZE/2,
-        r=constants.INITIAL_R,
+        r=constants.INITIAL_R, batch_size=constants.MAX_BATCH_SIZE,
         n_particles=n_particles, part_id=x,
         label="Particle {}".format(x), main_particle=main_particle)
 

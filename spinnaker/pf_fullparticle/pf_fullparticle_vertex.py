@@ -47,12 +47,12 @@ class PfFullParticleVertex(
                ('RECORDING', 3)])
 
     TRANSMISSION_DATA_SIZE = 16
-    CONFIG_PARAM_SIZE = 24
+    CONFIG_PARAM_SIZE = 28
     RECORD_BYTES_PER_STEP = 12
 
     KEYS_REQUIRED = 2
 
-    def __init__(self, x, y, r, n_particles, label, part_id,
+    def __init__(self, x, y, r, n_particles, batch_size, label, part_id,
                  main_particle, constraints=None):
         MachineVertex.__init__(self, label=label, constraints=constraints)
 
@@ -62,6 +62,7 @@ class PfFullParticleVertex(
         self._y = y
         self._r = r
         self._n_particles = n_particles
+        self._batch_size = batch_size
         self._placement = None
         self._part_id = part_id
         self._main = main_particle
@@ -178,6 +179,7 @@ class PfFullParticleVertex(
         else:
             spec.write_value(0)
         spec.write_value(self._n_particles)
+        spec.write_value(self._batch_size)
 
         #initialise recording region
         spec.switch_write_focus(self.DATA_REGIONS.RECORDING.value)

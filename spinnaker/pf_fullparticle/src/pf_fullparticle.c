@@ -36,7 +36,7 @@
 #define MIN_LIKE 12.8k //64 * 0.2k
 #define SIGMA 3.0k
 #define DIV_VALUE 5000
-#define EVENT_WINDOW_SIZE 256
+//#define EVENT_WINDOW_SIZE 256
 #define RETINA_BUFFER_SIZE 4096
 #define TARGET_ELEMENTS 3
 #define SAVE_VECTOR_ELEMENTS TARGET_ELEMENTS
@@ -47,8 +47,6 @@
 #define K_PI 3.14159265359k
 #define K_PI_4 0.78539816k	/* pi/4 */
 #define LOG_COUNTER_PERIOD 1000000
-
-
 
 //! SYSTEM VARIABLES
 static uint32_t simulation_ticks = 0;
@@ -72,7 +70,7 @@ typedef enum transmission_region_elements {
 
 typedef enum config_region_elements {
     X_COORD = 0, Y_COORD = 1, RADIUS = 2, P2P_ID = 3, IS_MAIN = 4,
-    N_PARTS = 5
+    N_PARTS = 5, WIN_SIZE = 6
 } config_region_elements;
 
 typedef enum callback_priorities {
@@ -80,11 +78,9 @@ typedef enum callback_priorities {
 } callback_priorities;
 
 //! ALGORITHM VARIABLES
-static uint32_t event_window[EVENT_WINDOW_SIZE];
-//static accum event_window_x[EVENT_WINDOW_SIZE];
-//static accum event_window_y[EVENT_WINDOW_SIZE];
+static  uint32_t window_size = 0;
+static uint32_t *event_window;
 static uint32_t start_window = 0;
-static uint32_t size_window = 0;
 
 #define N_PARTICLE_STATES 4
 typedef enum state_identifiers {
@@ -103,7 +99,6 @@ static accum y = 64.0k;
 static accum r = 30.0k;
 static accum l = MIN_LIKE;
 static accum w = 1.0f;
-static accum n = 0.0f;
 
 static accum target[TARGET_ELEMENTS];
 static uint32_t random_part_i;
@@ -411,42 +406,27 @@ void calculate_likelihood() {
     //load in new data
     //uint cpsr = spin1_int_disable();
     uint32_t num_new_events = circular_buffer_size(retina_buffer);
-    uint32_t max_batch_size = (uint32_t)(4.0k * K_PI * r + 0.5k);
-    max_batch_size = max_batch_size > EVENT_WINDOW_SIZE ? EVENT_WINDOW_SIZE : max_batch_size;
+    uint32_t batch_size = (uint32_t)(1.0k * K_PI * r + 0.5k);
+    batch_size = batch_size > window_size ? window_size : batch_size;
+    batch_size = num_new_events > batch_size ? batch_size : num_new_events;
 
-    uint32_t this_batch_size = num_new_events > max_batch_size ? max_batch_size : num_new_events;
-
-    for(uint32_t i = 0; i < this_batch_size; i++) {
-        start_window = (start_window + 1) % EVENT_WINDOW_SIZE;
+    for(uint32_t i = 0; i < batch_size; i++) {
+        start_window = (start_window + 1) % window_size;
         circular_buffer_get_next(retina_buffer, &event_window[start_window]);
     }
     //spin1_mode_restore(cpsr);
 
+    events_processed += batch_size;
+    over_processed += window_size - batch_size;
 
-    //set the new window size
-    size_window = size_window + this_batch_size;
-    if(size_window > EVENT_WINDOW_SIZE) size_window = EVENT_WINDOW_SIZE;
-
-    events_processed += this_batch_size;
-
-    if(this_batch_size > size_window) {
-        under_processed += this_batch_size - size_window;
-    } else {
-        over_processed += size_window - this_batch_size;
-    }
-
-    if(this_batch_size < num_new_events)
-        events_in_delay += num_new_events - this_batch_size;
+    if(batch_size < num_new_events)
+        events_in_delay += num_new_events - batch_size;
 
     //initialise the likelihood calculation
     l = MIN_LIKE;
     score = 0.0k;
-    n = (accum)size_window;
     memset(L, 0, ANG_BUCKETS * sizeof(accum));
     n_neg_events = 0;
-//    for(uint32_t i = 0; i < ANG_BUCKETS; i++) {
-//        L[i] = 0.0k;
-//    }
     negativeScaler = NEG_BIAS_CONSTANT / (r * r);
 
 
@@ -456,7 +436,7 @@ void calculate_likelihood() {
 
     uint32_t count = 0;
     uint32_t i = start_window;
-    while(count < size_window) {
+    while(count < window_size) {
 
         dx = X_MASK(event_window[i]) - x;
         dy = Y_MASK(event_window[i]) - y;
@@ -490,7 +470,7 @@ void calculate_likelihood() {
         }
 
         //update our counters
-        if(i == 0) i = EVENT_WINDOW_SIZE;
+        if(i == 0) i = window_size;
         i--;
         count++;
     }
@@ -659,6 +639,7 @@ bool read_config(address_t address){
     //read data
     my_p2p_id = address[P2P_ID];
     n_particles = address[N_PARTS];
+    window_size = address[WIN_SIZE];
     if (address[IS_MAIN]) is_main = true;
 
     x = address[X_COORD];
@@ -675,6 +656,7 @@ bool read_config(address_t address){
     if(is_main) log_info("Main Particle");
     log_info("ID: %d / %d, (my_turn: %d)", my_p2p_id, n_particles, my_turn);
     log_info("x, y, r: %u, %u, %u", (uint32_t)x, (uint32_t)y, (uint32_t)r);
+    log_info("Processing %u events / update cycle", window_size);
 
     return true;
 }
@@ -755,6 +737,10 @@ bool initialize(uint32_t *timer_period) {
         log_info("Could not create retina buffer");
         return false;
     }
+
+    event_window = spin1_malloc(window_size * sizeof(uint32_t));
+    for(uint32_t i = 0; i < window_size; i++)
+        event_window[i] = 0;
 
     proc_data = spin1_malloc(n_particles * sizeof(uint32_t*));
     work_data = spin1_malloc(n_particles * sizeof(uint32_t*));
