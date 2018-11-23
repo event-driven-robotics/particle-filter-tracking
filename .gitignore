@@ -1,4 +1,6 @@
 build/
+scripts/*.txt
+scripts/*.pdf
 *.asv
 *.dict
 modified_src/
