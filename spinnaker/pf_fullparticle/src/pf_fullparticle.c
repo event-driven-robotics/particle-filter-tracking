@@ -404,17 +404,17 @@ static inline accum approxatan2(accum y, accum x) {
 void calculate_likelihood() {
 
     //load in new data
-    //uint cpsr = spin1_int_disable();
+    uint cpsr = spin1_int_disable();
     uint32_t num_new_events = circular_buffer_size(retina_buffer);
     uint32_t batch_size = (uint32_t)(1.0k * K_PI * r + 0.5k);
-    batch_size = batch_size > window_size ? window_size : batch_size;
-    batch_size = num_new_events > batch_size ? batch_size : num_new_events;
+    batch_size = batch_size < window_size ? batch_size : window_size;
+    batch_size = batch_size < num_new_events ? batch_size : num_new_events;
 
     for(uint32_t i = 0; i < batch_size; i++) {
         start_window = (start_window + 1) % window_size;
         circular_buffer_get_next(retina_buffer, &event_window[start_window]);
     }
-    //spin1_mode_restore(cpsr);
+    spin1_mode_restore(cpsr);
 
     events_processed += batch_size;
     over_processed += window_size - batch_size;
