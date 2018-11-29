@@ -1,7 +1,3 @@
-gt_file = 'C:\Users\AGlover\Documents\workspace\dump\trackingcomparison\ATIS\data_00002\data.log.GT';
-cpu_file = 'C:\Users\AGlover\Documents\workspace\dump\trackingcomparison\cpu\data_00002\data.log.txt';
-spin_file = 'C:\Users\AGlover\Documents\workspace\dump\trackingcomparison\spinnaker\data_00002\data.log.txt';
-time_period = [4 20];
 
 GT = importdata(gt_file);
 GT = [GT(:, 5), GT(:, 2), GT(:, 3)];
@@ -11,15 +7,10 @@ SPIN = importdata(spin_file);
 SPIN = [SPIN(:, 7), SPIN(:, 4), SPIN(:, 5)];
 
 %clean timestamps
-start_time = min([GT(1, 1) CPU(1, 1) SPIN(1, 1)]);
+start_time = max([GT(1, 1) CPU(1, 1) SPIN(1, 1)]);
 GT(:, 1) = GT(:, 1) - start_time;
 CPU(:, 1) = CPU(:, 1) - start_time;
 SPIN(:, 1) = SPIN(:, 1) - start_time;
-
-c = hot(3) * 0.85;
-c1 = c(1, :);
-c2 = c(2, :);
-c3 = c(3, :);
 
 figure(1); clf;
 sp1 = subplot(2, 1, 1); hold on;
@@ -47,19 +38,12 @@ set(sp1, 'xlim', time_period);
 set(sp2, 'ylim', fixed_ylim);
 set(sp2, 'xlim', time_period);
 
-
-
-set(gcf, 'position', [3.3417 10.3083 9.7250 5.1000]);
+set(1,'Units','Inches');
+%set(gcf, 'position', [3.3417 10.3083 9.7250 5.1000]);
 
 
 set(findall(gcf,'-property','FontSize'),'FontSize',12);
 set(findall(gcf,'-property','FontType'),'FontType','Times');
-
-disp('Saving Figure 1');
-set(1,'Units','Inches');
-pos = get(1,'Position');
-set(1,'PaperPositionMode','Auto','PaperUnits','Inches','PaperSize',[pos(3), pos(4)])
-print(1,'tracking.pdf','-dpdf','-r0','-fillpage')
 
 figure(2); clf; hold on;
 
@@ -71,6 +55,19 @@ xlabel('Time (s)');
 ylabel('Y position (pixels)');
 set(gca, 'ylim', [110 160]);
 set(gca, 'xlim', [11.3 12.3]);
+
+set(findall(gcf,'-property','FontSize'),'FontSize',12);
+set(findall(gcf,'-property','FontType'),'FontType','Times');
+
+if ~PUBLISH
+    return;
+end
+
+disp('Saving Figure 1');
+set(1,'Units','Inches');
+pos = get(1,'Position');
+set(1,'PaperPositionMode','Auto','PaperUnits','Inches','PaperSize',[pos(3), pos(4)])
+print(1,'tracking.pdf','-dpdf','-r0','-fillpage')
 
 disp('Saving Figure 2');
 set(2,'Units','Inches');
