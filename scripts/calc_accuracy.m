@@ -1,9 +1,4 @@
 
-if(isfile(accuracy_file))
-    disp('Output file already exists. Please choose another location');
-    %return;
-end
-
 %extract relevant information
 GT = importdata(gt_file);
 GT = [GT(:, 5), GT(:, 2), GT(:, 3)];
@@ -24,7 +19,9 @@ SPIN(:, 1) = SPIN(:, 1) - start_time;
 end_time = min([GT(end, 1) CPU(end, 1) SPIN(end, 1)]);
 
 %remove ts synch errors
-SPIN = SPIN([true; diff(SPIN(:, 1))>0], :);
+while(sum(diff(SPIN(:, 1))< 0)> 0)
+    SPIN = SPIN([true; diff(SPIN(:, 1))>0], :);
+end
 
 %perform interpolation
 r_ts = 0: resolution : end_time;
@@ -34,15 +31,15 @@ r_gty = interp1(GT(:, 1), GT(:, 3), r_ts, 'linear', 'extrap');
 
 cpu_lat = interp1(LAT(:, 1), LAT(:, 2), CPU(:, 1), 'nearest', 'extrap');
 CPU(:, 1) = CPU(:, 1) - cpu_lat;
-sortrows(CPU);
-r_cpux = interp1(CPU(:, 1), CPU(:, 2), r_ts, 'PCHIP');
-r_cpuy = interp1(CPU(:, 1), CPU(:, 3), r_ts, 'PCHIP');
+%sortrows(CPU);
+r_cpux = interp1(CPU(:, 1), CPU(:, 2), r_ts, 'linear');
+r_cpuy = interp1(CPU(:, 1), CPU(:, 3), r_ts, 'linear');
 
 spin_lat = interp1(LAT(:, 1), LAT(:, 3), SPIN(:, 1), 'nearest', 'extrap');
 SPIN(:, 1) = SPIN(:, 1) - spin_lat;
-sortrows(SPIN);
-r_spinx = interp1(SPIN(:, 1), SPIN(:, 2), r_ts, 'PCHIP');
-r_spiny = interp1(SPIN(:, 1), SPIN(:, 3), r_ts, 'PCHIP');
+%SPIN = sortrows(SPIN);
+r_spinx = interp1(SPIN(:, 1), SPIN(:, 2), r_ts, 'linear');
+r_spiny = interp1(SPIN(:, 1), SPIN(:, 3), r_ts, 'linear');
 
 figure(1); clf; hold on;
 plot(r_ts, r_gtx, 'color', c3);
@@ -59,10 +56,12 @@ plot(r_ts, sqrt(error_spin));
 rms_cpu = sqrt(mean(error_cpu));
 rms_spin = sqrt(mean(error_spin));
 
-disp(['RMS CPU ' num2str(rms_cpu)]);
-disp(['RMS SpiNNaker ' num2str(rms_spin)]);
-output = [LAT_AVG(2) LAT_VAR(2) LAT_AVG(3) LAT_VAR(3); rms_cpu 0 rms_spin 0];
+%disp(['RMS CPU ' num2str(rms_cpu)]);
+%disp(['RMS SpiNNaker ' num2str(rms_spin)]);
+output = [mean(LAT(:, 2)*1000) sqrt(var(LAT(:, 2)*1000)) mean(LAT(:, 3)*1000) sqrt(var(LAT(:, 3)*1000)); 
+    mean(sqrt(error_cpu)) sqrt(var(sqrt(error_cpu))) mean(sqrt(error_spin)) sqrt(var(sqrt(error_spin)))];
 
+disp(output);
 dlmwrite(accuracy_file, output, 'delimiter', ' ', 'precision', 4);
 
 

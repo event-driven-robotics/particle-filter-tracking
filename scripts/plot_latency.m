@@ -11,7 +11,7 @@ line([latency(1, 1) latency(end, 1)], [mean(latency(:, 3)) mean(latency(:, 3))],
 
 xlabel('Time (s)');
 ylabel('Latency (ms)');
-legend('CPU[1]-256', 'SPIN-256');
+legend('CPU[1]', 'SPIN');
 
 %set(gcf, 'position', [3.3417 10.3083 9.7250 5.1000]);
 set(findall(gcf,'-property','FontSize'),'FontSize',12);

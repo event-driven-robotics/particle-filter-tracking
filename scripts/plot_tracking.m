@@ -45,6 +45,10 @@ set(1,'Units','Inches');
 set(findall(gcf,'-property','FontSize'),'FontSize',12);
 set(findall(gcf,'-property','FontType'),'FontType','Times');
 
+if ~PUBLISH
+    return;
+end
+
 figure(2); clf; hold on;
 
 plot(GT(:, 1), GT(:, 3), '-', 'linewidth', 5, 'color', c3);
@@ -59,9 +63,7 @@ set(gca, 'xlim', [11.3 12.3]);
 set(findall(gcf,'-property','FontSize'),'FontSize',12);
 set(findall(gcf,'-property','FontType'),'FontType','Times');
 
-if ~PUBLISH
-    return;
-end
+
 
 disp('Saving Figure 1');
 set(1,'Units','Inches');
