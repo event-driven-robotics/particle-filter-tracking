@@ -6,10 +6,11 @@ CPU = importdata(cpu_file);
 CPU = [CPU(:, 7), CPU(:, 4), CPU(:, 5)];
 SPIN = importdata(spin_file);
 SPIN = [SPIN(:, 7), SPIN(:, 4), SPIN(:, 5)];
-LAT = importdata(latency_file);
+LAT_CPU = importdata(latency_cpu_file);
+LAT_SPIN = importdata(latency_spin_file);
 
-LAT_AVG = mean(LAT);
-LAT_VAR = var(LAT);
+%LAT_AVG = mean(LAT);
+%LAT_VAR = var(LAT);
 
 %clean timestamps
 start_time = max([GT(1, 1) CPU(1, 1) SPIN(1, 1)]);
@@ -29,13 +30,13 @@ r_gtx = interp1(GT(:, 1), GT(:, 2), r_ts, 'linear', 'extrap');
 r_gty = interp1(GT(:, 1), GT(:, 3), r_ts, 'linear', 'extrap');
 
 
-cpu_lat = interp1(LAT(:, 1), LAT(:, 2), CPU(:, 1), 'nearest', 'extrap');
+cpu_lat = interp1(LAT_CPU(:, 1), LAT_CPU(:, 2), CPU(:, 1), 'nearest', 'extrap');
 CPU(:, 1) = CPU(:, 1) - cpu_lat;
 %sortrows(CPU);
 r_cpux = interp1(CPU(:, 1), CPU(:, 2), r_ts, 'linear');
 r_cpuy = interp1(CPU(:, 1), CPU(:, 3), r_ts, 'linear');
 
-spin_lat = interp1(LAT(:, 1), LAT(:, 3), SPIN(:, 1), 'nearest', 'extrap');
+spin_lat = interp1(LAT_SPIN(:, 1), LAT_SPIN(:, 2), SPIN(:, 1), 'nearest', 'extrap');
 SPIN(:, 1) = SPIN(:, 1) - spin_lat;
 %SPIN = sortrows(SPIN);
 r_spinx = interp1(SPIN(:, 1), SPIN(:, 2), r_ts, 'linear');
@@ -58,7 +59,7 @@ rms_spin = sqrt(mean(error_spin));
 
 %disp(['RMS CPU ' num2str(rms_cpu)]);
 %disp(['RMS SpiNNaker ' num2str(rms_spin)]);
-output = [mean(LAT(:, 2)*1000) sqrt(var(LAT(:, 2)*1000)) mean(LAT(:, 3)*1000) sqrt(var(LAT(:, 3)*1000)); 
+output = [mean(LAT_CPU(:, 2)*1000) sqrt(var(LAT_CPU(:, 2)*1000)) mean(LAT_SPIN(:, 2)*1000) sqrt(var(LAT_SPIN(:, 2)*1000)); 
     mean(sqrt(error_cpu)) sqrt(var(sqrt(error_cpu))) mean(sqrt(error_spin)) sqrt(var(sqrt(error_spin)))];
 
 disp(output);

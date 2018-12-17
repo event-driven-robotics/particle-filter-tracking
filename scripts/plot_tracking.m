@@ -43,7 +43,7 @@ set(1,'Units','Inches');
 
 
 set(findall(gcf,'-property','FontSize'),'FontSize',12);
-set(findall(gcf,'-property','FontType'),'FontType','Times');
+set(findall(gcf,'-property','FontName'),'FontName','Times');
 
 if ~PUBLISH
     return;
@@ -57,11 +57,11 @@ plot(SPIN(:, 1), SPIN(:, 3), '--', 'linewidth', 2, 'color', c2);
 
 xlabel('Time (s)');
 ylabel('Y position (pixels)');
-set(gca, 'ylim', [110 160]);
-set(gca, 'xlim', [11.3 12.3]);
+set(gca, 'ylim', [110 170]);
+set(gca, 'xlim', [12.0 12.8]);
 
 set(findall(gcf,'-property','FontSize'),'FontSize',12);
-set(findall(gcf,'-property','FontType'),'FontType','Times');
+set(findall(gcf,'-property','FontName'),'FontName','Times');
 
 
 

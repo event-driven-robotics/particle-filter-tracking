@@ -1,6 +1,5 @@
 
 
-
 disp('Importing groud truth ... ');
 GT = importdata(gt_file);
 GT = [GT(:, 5), GT(:, 2), GT(:, 3)];
