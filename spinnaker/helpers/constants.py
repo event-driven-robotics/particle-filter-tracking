@@ -33,7 +33,7 @@ RETINA_X_SIZE = 304
 RETINA_Y_SIZE = 240
 RETINA_Y_BIT_SHIFT = 12
 INITIAL_R = 30
-PARTICLES = 100
+PARTICLES = 60
 MAX_BATCH_SIZE = 256
 
 #used by old particle/aggregator system

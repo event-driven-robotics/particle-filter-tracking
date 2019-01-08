@@ -126,6 +126,15 @@ typedef enum packet_identifiers{
     XR_IND = 0, YW_IND = 1
 } packet_identifiers;
 
+static bool packet_sending_turn = false;
+static bool finished_processing = true;
+static bool tried_to_call_my_turn = false;
+static bool tried_to_call_proc_done = false;
+
+static bool trigger_from_packets = true;
+static bool trigger_from_events = false;
+static uint32_t desired_batch_size = 94;
+
 
 //! DEBUG VARIABLES
 static uint32_t received_count = 0;
@@ -138,10 +147,7 @@ static uint32_t under_processed = 0;
 static uint32_t n_neg_events = 0;
 static uint32_t events_in_delay = 0;
 
-static bool packet_sending_turn = false;
-static bool finished_processing = true;
-static bool tried_to_call_my_turn = false;
-static bool tried_to_call_proc_done = false;
+
 
 
 //! \brief converts a int to a float via bit wise conversion
@@ -161,7 +167,7 @@ static inline int accum_to_int( accum data){
 
 
 //SOME FORWARD DECLARATIONS
-void particle_filter_update_step(uint do_p2p, uint do_calc);
+void particle_filter_update_step(uint event_trigger, uint packet_trigger);
 void ready_to_send(uint proc_msg, uint pack_msg);
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -179,6 +185,10 @@ void receive_retina_event(uint key, uint payload) {
     if (!circular_buffer_add(retina_buffer, key))
         dropped_count++;
     received_count++;
+//    if(trigger_from_events == false && circular_buffer_size(retina_buffer) > 20) {
+//        trigger_from_events = true;
+//        spin1_schedule_callback(particle_filter_update_step, 1, 0, FILTER_UPDATE);
+//    }
 
 }
 
@@ -204,7 +214,7 @@ void receive_particle_data_packet(uint key, uint payload) {
 
         packets_received = 0;
 
-        spin1_schedule_callback(particle_filter_update_step, 0, 0, FILTER_UPDATE);
+        spin1_schedule_callback(particle_filter_update_step, 0, 1, FILTER_UPDATE);
     }
 
 }
@@ -267,7 +277,7 @@ void send_roi()
     //this will send to the filters the updated ROI
     //only if the main_particle
     while (!spin1_send_mc_packet(filter_update_key + (XY_CODE((int)x, (int)y)),
-                (int)(r+7.0k), WITH_PAYLOAD)) {
+                (int)(r+10.0k), WITH_PAYLOAD)) {
             spin1_delay_us(1);
     }
 
@@ -376,7 +386,7 @@ void predict(float sigma) {
 
     x += 2.0k * sigma * MY_RAND - sigma;
     y += 2.0k * sigma * MY_RAND - sigma;
-    r += 0.4k * (2.0k * sigma * MY_RAND - sigma);
+    r += 0.2k * (2.0k * sigma * MY_RAND - sigma);
 
     if(r < MIN_RADIUS)      r = MIN_RADIUS;
     if(r > MAX_RADIUS)      r = MAX_RADIUS;
@@ -403,18 +413,26 @@ static inline accum approxatan2(accum y, accum x) {
 
 void calculate_likelihood() {
 
-    //load in new data
-    uint cpsr = spin1_int_disable();
+    //this should be done after the calculation, but the new r value is not
+    //calculated until the end of the operation. So we lag behind 1 cycle with
+    //this desired_batch_size calculation
+    //desired_batch_size = K_PI * r + 0.5k;
+
+    //calculate the batch_size actually used
+    uint32_t batch_size = K_PI * r + 0.5k;
+    //batch_size = batch_size < window_size ? batch_size : window_size;
+
+    //uint cpsr = spin1_int_disable();
     uint32_t num_new_events = circular_buffer_size(retina_buffer);
-    uint32_t batch_size = (uint32_t)(1.0k * K_PI * r + 0.5k);
-    batch_size = batch_size < window_size ? batch_size : window_size;
+
     batch_size = batch_size < num_new_events ? batch_size : num_new_events;
 
+    //load in new data
     for(uint32_t i = 0; i < batch_size; i++) {
         start_window = (start_window + 1) % window_size;
         circular_buffer_get_next(retina_buffer, &event_window[start_window]);
     }
-    spin1_mode_restore(cpsr);
+    //spin1_mode_restore(cpsr);
 
     events_processed += batch_size;
     over_processed += window_size - batch_size;
@@ -479,10 +497,14 @@ void calculate_likelihood() {
 
 }
 
-void particle_filter_update_step(uint do_p2p, uint do_calc) {
+void particle_filter_update_step(uint event_trigger, uint packet_trigger) {
 
-    use(do_p2p);
-    use(do_calc);
+    use(event_trigger);
+    if(packet_trigger)
+        trigger_from_packets = true;
+
+//    if(!trigger_from_events || !trigger_from_packets)
+//        return;
 
     unpack_p_states();
 
@@ -514,6 +536,9 @@ void particle_filter_update_step(uint do_p2p, uint do_calc) {
     if(!spin1_schedule_callback(ready_to_send, 1, my_p2p_id == 0, SEND)) {
         log_error("Could not call proc done callback");
     }
+
+    trigger_from_packets = false;
+    trigger_from_events = false;
 
     //uint cpsr = spin1_fiq_disable();
     //spin1_mode_restore(cpsr);
