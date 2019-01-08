@@ -2,6 +2,7 @@
 %extract relevant information
 GT = importdata(gt_file);
 GT = [GT(:, 5), GT(:, 2), GT(:, 3)];
+fix_GT;
 CPU = importdata(cpu_file);
 CPU = [CPU(:, 7), CPU(:, 4), CPU(:, 5)];
 SPIN = importdata(spin_file);
@@ -17,7 +18,7 @@ start_time = max([GT(1, 1) CPU(1, 1) SPIN(1, 1)]);
 GT(:, 1) = GT(:, 1) - start_time;
 CPU(:, 1) = CPU(:, 1) - start_time;
 SPIN(:, 1) = SPIN(:, 1) - start_time;
-end_time = min([GT(end, 1) CPU(end, 1) SPIN(end, 1)]);
+end_time = min([GT(end, 1) CPU(end, 1) SPIN(end, 1) time_period(2)]);
 
 %remove ts synch errors
 while(sum(diff(SPIN(:, 1))< 0)> 0)
@@ -51,8 +52,8 @@ error_cpu = (r_cpux - r_gtx).^2 + (r_cpuy - r_gty).^2;
 error_spin = (r_spinx - r_gtx).^2 + (r_spiny - r_gty).^2;
 
 %figure(2); clf; hold on;
-plot(r_ts, sqrt(error_cpu));
-plot(r_ts, sqrt(error_spin));
+plot(r_ts, sqrt(error_cpu), 'color', c4);
+plot(r_ts, sqrt(error_spin), 'color', c5);
 
 rms_cpu = sqrt(mean(error_cpu));
 rms_spin = sqrt(mean(error_spin));

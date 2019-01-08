@@ -1,5 +1,10 @@
 
-GT = importdata(gt_file);
+try
+    GT = importdata(gt_file);
+catch
+    GT = [0 0 0 0 0]
+end
+        
 GT = [GT(:, 5), GT(:, 2), GT(:, 3)];
 CPU = importdata(cpu_file);
 CPU = [CPU(:, 7), CPU(:, 4), CPU(:, 5)];
@@ -20,6 +25,9 @@ plot(SPIN(:, 1), SPIN(:, 2), '--', 'linewidth', 2, 'color', c2);
 
 ylabel('X position (pixels)');
 ylim1 = get(gca, 'ylim');
+box on;
+
+
 
 sp2 = subplot(2, 1, 2); hold on;
 plot(GT(:, 1), GT(:, 3), '-', 'linewidth', 5, 'color', c3);
@@ -29,25 +37,21 @@ plot(SPIN(:, 1), SPIN(:, 3), '--', 'linewidth', 2, 'color', c2);
 xlabel('Time (s)');
 ylabel('Y position (pixels)');
 ylim2 = get(gca, 'ylim');
-
-legend('Ground Truth', 'CPU[1]-256', 'SPINN-256', 'location', 'northwest');
+legend('Ground Truth', 'CPU-20-512', 'SPINN-150-256', 'location', 'northwest');
 
 fixed_ylim = [min(ylim1(1), ylim2(1)), max(ylim1(2), ylim2(2))];
 set(sp1, 'ylim', fixed_ylim);
 set(sp1, 'xlim', time_period);
 set(sp2, 'ylim', fixed_ylim);
 set(sp2, 'xlim', time_period);
-
+box on;
 set(1,'Units','Inches');
-%set(gcf, 'position', [3.3417 10.3083 9.7250 5.1000]);
+set(1, 'position', [0.3681    8.4236    7    3.4931]);
 
 
 set(findall(gcf,'-property','FontSize'),'FontSize',12);
 set(findall(gcf,'-property','FontName'),'FontName','Times');
-
-if ~PUBLISH
-    return;
-end
+set(legend, 'fontsize', 8);
 
 figure(2); clf; hold on;
 
@@ -59,20 +63,11 @@ xlabel('Time (s)');
 ylabel('Y position (pixels)');
 set(gca, 'ylim', [110 170]);
 set(gca, 'xlim', [12.0 12.8]);
+legend('Ground Truth', 'CPU', 'SpiNNaker', 'location', 'northwest');
 
-set(findall(gcf,'-property','FontSize'),'FontSize',12);
+set(findall(gcf,'-property','FontSize'),'FontSize',16);
 set(findall(gcf,'-property','FontName'),'FontName','Times');
-
-
-
-disp('Saving Figure 1');
-set(1,'Units','Inches');
-pos = get(1,'Position');
-set(1,'PaperPositionMode','Auto','PaperUnits','Inches','PaperSize',[pos(3), pos(4)])
-print(1,'tracking.pdf','-dpdf','-r0','-fillpage')
-
-disp('Saving Figure 2');
+set(legend, 'fontsize', 12);
 set(2,'Units','Inches');
-pos = get(2,'Position');
-set(2,'PaperPositionMode','Auto','PaperUnits','Inches','PaperSize',[pos(3), pos(4)])
-print(2,'tracking_inset.pdf','-dpdf','-r0','-fillpage')
+set(2, 'position', [2.4 8 7.95 4.375]);
+box on;

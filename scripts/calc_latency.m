@@ -15,7 +15,7 @@ SPIN(:, 1) = SPIN(:, 1) - start_time;
 end_time = min([GT(end, 1) CPU(end, 1) SPIN(end, 1)]);
 
 %remove ts synch errors
-SPIN = SPIN([true; diff(SPIN(:, 1))>0], :);
+%SPIN = SPIN([true; diff(SPIN(:, 1))>0], :);
 
 r_ts = 0: resolution : end_time;
 r_gt = interp1(GT(:, 1), GT(:, 2), r_ts, 'linear');

@@ -6,6 +6,7 @@ GT = [GT(:, 5), GT(:, 2), GT(:, 3)];
 
 start_time = GT(1, 1);
 GT(:, 1) = GT(:, 1) - start_time;
+fix_GT;
 
 figure(1); clf; hold on;
 plot(GT(:, 1), GT(:, 2), '-', 'linewidth', 5, 'color', c3);
@@ -58,11 +59,5 @@ disp(['Event-rate is ' num2str(floor(dvdt*0.001)) 'k events / second']);
 output = [dp dt length(stamps) dpdt dvdt];
 
 dlmwrite(stats_file, output, 'delimiter', ' ', 'precision', '%10.4f');
-
-
-
-
-
-
 
 

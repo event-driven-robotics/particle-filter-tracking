@@ -101,9 +101,11 @@ legend('CPU', 'SpiNNaker', 'location', 'northwest');
 
 set(findall(gcf,'-property','FontSize'),'FontSize',12);
 set(findall(gcf,'-property','FontName'),'FontName','Times');
+set(legend, 'fontsize', 8);
 
 set(1,'Units','Inches');
 set(1, 'position', [0.3681    8.4236    7    3.4931]);
+box on;
 
 
 accuracies = [reshape([acc_cpu; [0 0 0]], [12, 1]), reshape([acc_spin; [0 0 0]], [12, 1])];
@@ -128,7 +130,7 @@ ylim(y_limits);
 xticks([2 6 10]);
 xticklabels({'20', '150', '400'});
 xlabel('Number of Particles (n_p)');
-ylabel('Accuracy (pixels)');
+ylabel('Tracking Error (pixels)');
 h = text(1, 20, 'n_v = 256');
 set(h, 'rotation', 60);
 h = text(2, 20, 'n_v = 512');
@@ -139,9 +141,11 @@ legend('CPU', 'SpiNNaker', 'location', 'northwest');
 
 set(findall(gcf,'-property','FontSize'),'FontSize',12);
 set(findall(gcf,'-property','FontName'),'FontName','Times');
+set(legend, 'fontsize', 8);
 
 set(2,'Units','Inches');
 set(2, 'position', [0.3819    4.0000    7    3.4931]);
+box on;
 
 figure(3); clf; hold on;
 speed = reshape(speed, [9, 1]);
@@ -152,7 +156,7 @@ for i = [1 4 7 2 3 5 6 8 9]
     h = plot(speed(i), eventrate(i), '.', 'marker', markers{i}, ... 
         'markersize', markersizes{i}, 'color', 'k');
 end
-legend('n_v = 20', 'n_v = 150', 'n_v = 400', 'location', 'northwest');
+legend('n_p = 20', 'n_p = 150', 'n_p = 400', 'location', 'northwest');
 
 
 xlabel('Average Target Speed (px/s)');
@@ -160,24 +164,12 @@ ylabel('Average event-rate (kv/s)');
 set(gca, 'xlim', [0 400]);
 set(gca, 'ylim', [0 400]);
 
-set(findall(gcf,'-property','FontSize'),'FontSize',12);
+set(findall(gcf,'-property','FontSize'),'FontSize',16);
 set(findall(gcf,'-property','FontName'),'FontName','Times');
+set(legend, 'fontsize', 12);
+box on;
 
 
-
-if ~PUBLISH
-    return
-end
-
-disp('Saving Figure 1');
-pos = get(1,'Position');
-set(1,'PaperPositionMode','Auto','PaperUnits','Inches','PaperSize',[pos(3), pos(4)])
-print(1,'latency_all.pdf','-dpdf','-r0')
-
-disp('Saving Figure 2');
-pos = get(2,'Position');
-set(2,'PaperPositionMode','Auto','PaperUnits','Inches','PaperSize',[pos(3), pos(4)])
-print(2,'accuracy_all.pdf','-dpdf','-r0')
 
 
 
