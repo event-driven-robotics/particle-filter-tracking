@@ -83,6 +83,7 @@ bool module::configure(yarp::os::ResourceFinder &rf)
     double trueDetectionThreshold = rf.check("truethresh", yarp::os::Value(0.35)).asDouble();
     double resetTimeout = rf.check("reset", yarp::os::Value(1.0)).asDouble();
     double negativeBias = rf.check("negbias", yarp::os::Value(10.0)).asDouble();
+    double output_sample_delta = rf.check("output_sample", Value(0)).asDouble();
 
     delaycontrol.setGain(gain);
     delaycontrol.setMaxRawLikelihood(bins);
@@ -90,6 +91,7 @@ bool module::configure(yarp::os::ResourceFinder &rf)
     delaycontrol.setTrueThreshold(trueDetectionThreshold);
     delaycontrol.setResetTimeout(resetTimeout);
     delaycontrol.setMotionVariance(particleVariance);
+    delaycontrol.setOutputSampleDelta(output_sample_delta);
     //delaycontrol.setMinRawLikelihood(minlikelihood);
 
     delaycontrol.initFilter(width, height, particles, bins, adaptivesampling,

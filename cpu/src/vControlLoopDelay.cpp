@@ -33,6 +33,7 @@ void delayControl::initFilter(int width, int height, int nparticles, int bins,
     res.height = height;
     res.width = width;
     this->batch_size = batch_size;
+    px = py = pr = 0;
 }
 
 void delayControl::setMinRawLikelihood(double value)
@@ -93,22 +94,27 @@ void delayControl::setResetTimeout(double value)
     resetTimeout = value;
 }
 
+void delayControl::setOutputSampleDelta(double value)
+{
+    output_sample_delta = value;
+}
+
 void delayControl::performReset(int x, int y, int r)
 {
     if(x > 0)
         vpf.setSeed(x, y, r);
     vpf.resetToSeed();
-    inputPort.resume();
+    input_port.resume();
 }
 
 yarp::sig::Vector delayControl::getTrackingStats()
 {
     yarp::sig::Vector stats(10);
 
-    stats[0] = 1000*inputPort.queryDelayT();
+    stats[0] = 1000*input_port.queryDelayT();
     stats[1] = 1.0/filterPeriod;
     stats[2] = targetproc;
-    stats[3] = inputPort.queryRate() / 1000.0;
+    stats[3] = input_port.queryRate() / 1000.0;
     stats[4] = dx;
     stats[5] = dy;
     stats[6] = dr;
@@ -122,14 +128,14 @@ yarp::sig::Vector delayControl::getTrackingStats()
 
 bool delayControl::open(std::string name, unsigned int qlimit)
 {
-    inputPort.setQLimit(qlimit);
-    if(!inputPort.open(name + "/vBottle:i"))
+    input_port.setQLimit(qlimit);
+    if(!input_port.open(name + "/vBottle:i"))
         return false;
-    outputPort.setWriteType(GaussianAE::tag);
-    if(!outputPort.open(name + "/vBottle:o"))
+    event_output_port.setWriteType(GaussianAE::tag);
+    if(!event_output_port.open(name + "/vBottle:o"))
         return false;
-//    if(!scopePort.open(name + "/scope:o"))
-//        return false;
+    if(!raw_output_port.open(name + "/state:o"))
+        return false;
     if(!debugPort.open(name + "/debug:o"))
         return false;
 
@@ -138,16 +144,15 @@ bool delayControl::open(std::string name, unsigned int qlimit)
 
 void delayControl::onStop()
 {
-    inputPort.close();
-    outputPort.close();
-    //scopePort.close();
+    input_port.close();
+    event_output_port.close();
+    raw_output_port.close();
     debugPort.close();
-    //inputPort.releaseDataLock();
 }
 
 void delayControl::pause()
 {
-    inputPort.interrupt();
+    input_port.interrupt();
 }
 
 void delayControl::run()
@@ -169,7 +174,7 @@ void delayControl::run()
         qROI.setSize(50);
 
     //START HERE!!
-    const vQueue *q = inputPort.read(ystamp);
+    const vQueue *q = input_port.read(ystamp);
     if(!q || isStopping()) return;
     vpf.extractTargetPosition(avgx, avgy, avgr);
 
@@ -178,8 +183,8 @@ void delayControl::run()
     while(true) {
 
         //calculate error
-        double delay = inputPort.queryDelayT();
-        unsigned int unprocdqs = inputPort.queryunprocessed();
+        double delay = input_port.queryDelayT();
+        unsigned int unprocdqs = input_port.queryunprocessed();
         targetproc = M_PI * avgr;
         if(unprocdqs > 1 && delay > gain)
             targetproc *= (delay / gain);
@@ -195,10 +200,10 @@ void delayControl::run()
 
             //if we ran out of events get a new queue
             if(i >= q->size()) {
-                //if(inputPort.queryunprocessed() < 3) break;
-                //inputPort.scrapQ();
+                //if(input_port.queryunprocessed() < 3) break;
+                //input_port.scrapQ();
                 i = 0;
-                q = inputPort.read(ystamp);
+                q = input_port.read(ystamp);
                 if(!q || isStopping()) return;
             }
 
@@ -272,96 +277,58 @@ void delayControl::run()
             stagnantstart = 0;
         }
 
+        double delta_x = avgx - px;
+        double delta_y = avgy - py;
+        double dpos = sqrt(delta_x * delta_x + delta_y * delta_y);
+        if(dpos > output_sample_delta) {
+            px = avgx;
+            py = avgy;
+            pr = avgr;
+            //output our event
+            if(event_output_port.getOutputCount()) {
+                auto ceg = make_event<GaussianAE>();
+                ceg->stamp = currentstamp;
+                ceg->setChannel(channel);
+                ceg->x = avgx;
+                ceg->y = avgy;
+                ceg->sigx = avgr;
+                ceg->sigy = tw;
+                ceg->sigxy = 1.0;
+                if(vpf.maxlikelihood > detectionThreshold)
+                    ceg->polarity = 1.0;
+                else
+                    ceg->polarity = 0.0;
 
-        //output our event
-        if(outputPort.getOutputCount()) {
-            auto ceg = make_event<GaussianAE>();
-            ceg->stamp = currentstamp;
-            ceg->setChannel(channel);
-            ceg->x = avgx;
-            ceg->y = avgy;
-            ceg->sigx = avgr;
-            ceg->sigy = tw;
-            ceg->sigxy = 1.0;
-            if(vpf.maxlikelihood > detectionThreshold)
-                ceg->polarity = 1.0;
-            else
-                ceg->polarity = 0.0;
+                vQueue outq; outq.push_back(ceg);
+                event_output_port.write(outq, ystamp);
 
-            vQueue outq; outq.push_back(ceg);
-            outputPort.write(outq, ystamp);
+            }
+            //output the raw data
+            if(raw_output_port.getOutputCount()) {
+                Bottle &next_sample = raw_output_port.prepare();
+                next_sample.clear();
+                next_sample.addDouble(currentstamp);
+                next_sample.addDouble(avgx);
+                next_sample.addDouble(avgy);
+                next_sample.addDouble(avgr);
+                next_sample.addDouble(channel);
+                next_sample.addDouble(tw);
+                next_sample.addDouble(vpf.maxlikelihood);
+
+                raw_output_port.setEnvelope(ystamp);
+                raw_output_port.write();
+            }
+
 
         }
+
+
+
+
 
         static double prev_update_time = Tgetwindow;
         filterPeriod = Time::now() - prev_update_time;
         prev_update_time += filterPeriod;
-
-//        //write to our scope
-//        static double pscopetime = yarp::os::Time::now();
-//        static double ratetime = yarp::os::Time::now();
-//        if(scopePort.getOutputCount()) {
-
-//            static int countscope = 0;
-//            static double val1 = 0;
-//            static double val2 = 0;
-//            static double val3 = 0;
-//            static double val4 = 0;
-//            static double val5 = 0;
-//            static double val6 = 0;
-//            static double val7 = 0;
-//            static double val8 = 0;
-//            //static double val9 = 0;
-//            static double val10 = 0;
-
-//            double ratetimedt = yarp::os::Time::now() - ratetime;
-//            val1 += inputPort.queryDelayT();
-//            val2 += 1.0/ratetimedt;
-//            val3 += targetproc;
-//            val4 += inputPort.queryRate() / 1000.0;
-//            val5 += dx;
-//            val6 += dy;
-//            val7 += dr;
-//            val8 += vpf.maxlikelihood / (double)maxRawLikelihood;
-//            //val9 += cpuusage.getProcessorUsage();
-//            val10 += qROI.n;
-//            ratetime += ratetimedt;
-//            countscope++;
-
-//            double scopedt = yarp::os::Time::now() - pscopetime;
-//            if((scopedt > 0.1 || scopedt < 0) && countscope > 3) {
-//                pscopetime += scopedt;
-
-//                yarp::os::Bottle &scopedata = scopePort.prepare();
-//                scopedata.clear();
-//                scopedata.addDouble(1000*val1/countscope);
-//                scopedata.addDouble(val2/countscope);
-//                scopedata.addDouble(val3/countscope);
-//                scopedata.addDouble(val4/countscope);
-//                scopedata.addDouble(val5/countscope);
-//                scopedata.addDouble(val6/countscope);
-//                scopedata.addDouble(val7/countscope);
-//                scopedata.addDouble(val8/countscope);
-//                //scopedata.addDouble(5000 * cpuusage.getProcessorUsage());
-//                scopedata.addDouble(0.0);
-//                scopedata.addDouble(val10/countscope);
-
-//                val1 = 0;//-ev::vtsHelper::max_stamp;
-//                val2 = 0;//-ev::vtsHelper::max_stamp;
-//                val3 = 0;//-ev::vtsHelper::max_stamp;
-//                val4 = 0;//-ev::vtsHelper::max_stamp;
-//                val5 = 0;//-ev::vtsHelper::max_stamp;
-//                val6 = 0;//-ev::vtsHelper::max_stamp;
-//                val7 = 0;//-ev::vtsHelper::max_stamp;
-//                val8 = 0;
-//                //val9 = 0;
-//                val10 = 0;
-
-//                countscope = 0;
-
-//                scopePort.write();
-//            }
-//        }
 
         //output a debug image
         if(debugPort.getOutputCount()) {

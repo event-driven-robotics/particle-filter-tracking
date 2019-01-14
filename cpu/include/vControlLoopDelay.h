@@ -54,11 +54,11 @@ class delayControl : public yarp::os::Thread
 private:
 
     //data structures and ports
-    vGenReadPort inputPort;
-    vGenWritePort outputPort;
+    vReadPort<vQueue> input_port;
+    vWritePort event_output_port;
+    BufferedPort<Bottle> raw_output_port;
     roiq qROI;
     vParticlefilter vpf;
-    //yarp::os::BufferedPort<vBottle> outputPort;
 
     //variables
     resolution res;
@@ -70,6 +70,7 @@ private:
     double resetTimeout;
     double motionVariance;
     int batch_size;
+    double output_sample_delta;
 
     //diagnostics
     double filterPeriod;
@@ -77,6 +78,7 @@ private:
     double dx;
     double dy;
     double dr;
+    double px, py, pr;
     ev::benchmark cpuusage;
 
     yarp::os::BufferedPort< yarp::sig::ImageOf< yarp::sig::PixelBgr> > debugPort;
@@ -100,6 +102,7 @@ public:
     void setMotionVariance(double value);
     void setTrueThreshold(double value);
     void setAdaptive(double value = true);
+    void setOutputSampleDelta(double value);
 
     void setGain(double value);
     void setMinToProc(int value);
