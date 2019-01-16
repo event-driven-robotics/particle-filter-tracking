@@ -62,7 +62,7 @@ plot(SPIN(:, 1), SPIN(:, 3), '--', 'linewidth', 2, 'color', c2);
 xlabel('Time (s)');
 ylabel('Y position (pixels)');
 set(gca, 'ylim', [110 170]);
-set(gca, 'xlim', [12.0 12.8]);
+set(gca, 'xlim', [12.5 13.4]);
 legend('Ground Truth', 'CPU', 'SpiNNaker', 'location', 'northwest');
 
 set(findall(gcf,'-property','FontSize'),'FontSize',16);

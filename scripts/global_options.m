@@ -1,5 +1,5 @@
-root_dir = 'C:\Users\AGlover\Documents\workspace\dump\trackingcomparison2\';
-dataset_dir = 'difficult1';
+root_dir = 'C:\Users\AGlover\Documents\workspace\dump\trackingcomparison3\';
+dataset_dir = '150_1024';
 
 raw_file = [root_dir dataset_dir '\ATIS\data.log.txt'];
 gt_file = [root_dir dataset_dir '\ATIS\data.log.GT'];
@@ -12,7 +12,7 @@ accuracy_file = [root_dir dataset_dir '\accuracy.txt'];
 stats_file = [root_dir dataset_dir '\data_stats.txt'];
 
 time_period = [0 20];
-lat_threshold = 150 * 0.001;
+lat_threshold = 500 * 0.001;
 resolution = 0.01; %of latency measurements
 PUBLISH = false;
 

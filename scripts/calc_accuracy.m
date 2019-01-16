@@ -21,7 +21,7 @@ SPIN(:, 1) = SPIN(:, 1) - start_time;
 end_time = min([GT(end, 1) CPU(end, 1) SPIN(end, 1) time_period(2)]);
 
 %remove ts synch errors
-while(sum(diff(SPIN(:, 1))< 0)> 0)
+while(sum(diff(SPIN(:, 1)) <= 0)> 0)
     SPIN = SPIN([true; diff(SPIN(:, 1))>0], :);
 end
 

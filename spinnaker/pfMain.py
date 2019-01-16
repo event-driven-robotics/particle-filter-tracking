@@ -8,7 +8,7 @@ We then fetch the written data and print it on the python console.
 """
 
 import logging
-
+import time
 # import front end
 import spinnaker_graph_front_end as front_end
 # import graph components
@@ -158,6 +158,9 @@ front_end.add_machine_edge_instance(
 
 if(run_online):
     front_end.run(None)
+    time.sleep(0.5);
+    print 'Experiment Started with',constants.PARTICLES,'particles and',\
+        constants.MAX_BATCH_SIZE,'batch size.'
     raw_input("Press Enter to stop operation...")
 else:
     front_end.run(operation_time)
