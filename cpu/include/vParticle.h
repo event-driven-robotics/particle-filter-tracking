@@ -99,7 +99,20 @@ public:
         return (int)(bs(dy, dx) + 0.5);
     }
 
+};
 
+class projectedModel {
+
+private:
+    yarp::sig::ImageOf<yarp::sig::PixelFloat> projection;
+
+public:
+
+    projectedModel();
+
+    void initialiseCircle(int r);
+
+    inline double query(int x, int y);
 
 };
 

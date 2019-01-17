@@ -14,8 +14,8 @@ include(ICUBcontribHelpers)
 include(ICUBcontribOptions)
 icubcontrib_set_default_prefix()
 
-file(GLOB source src/*.cpp)
-file(GLOB header include/*.h)
+file(GLOB source src/vControlLoopDelay.cpp src/vParticle.cpp)
+file(GLOB header include/vControlLoopDelay.h include/vParticle.h)
 
 include_directories(${PROJECT_SOURCE_DIR}/include
                     ${eventdriven_INCLUDE_DIRS})

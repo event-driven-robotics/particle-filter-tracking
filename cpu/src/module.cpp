@@ -18,29 +18,6 @@
 
 #include "module.h"
 
-int main(int argc, char * argv[])
-{
-    /* initialize yarp network */
-    yarp::os::Network yarp;
-    if(!yarp.checkNetwork()) {
-        std::cout << "Could not connect to YARP" << std::endl;
-        return false;
-    }
-
-    /* create the module */
-    module instance;
-
-    /* prepare and configure the resource finder */
-    yarp::os::ResourceFinder rf;
-    rf.setVerbose( true );
-    rf.setDefaultContext( "eventdriven" );
-    rf.setDefaultConfigFile( "vDelayControl.ini" );
-    rf.configure( argc, argv );
-
-    return instance.runModule(rf);
-}
-
-
 /*////////////////////////////////////////////////////////////////////////////*/
 //vParticleModule
 /*////////////////////////////////////////////////////////////////////////////*/

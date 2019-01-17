@@ -18,85 +18,159 @@
 
 #include "vControlLoopDelay.h"
 
+int main(int argc, char * argv[])
+{
+    /* initialize yarp network */
+    yarp::os::Network yarp;
+    if(!yarp.checkNetwork()) {
+        std::cout << "Could not connect to YARP" << std::endl;
+        return false;
+    }
+
+    /* create the module */
+    delayControl instance;
+
+    /* prepare and configure the resource finder */
+    yarp::os::ResourceFinder rf;
+    rf.setVerbose( false );
+    rf.setDefaultContext( "eventdriven" );
+    rf.setDefaultConfigFile( "vParticleFilterTracker.ini" );
+    rf.configure( argc, argv );
+
+    return instance.runModule(rf);
+}
+
+/*////////////////////////////////////////////////////////////////////////////*/
+// ROIQ
+/*////////////////////////////////////////////////////////////////////////////*/
+
+
+roiq::roiq()
+{
+    roi.resize(4);
+    n = 1000;
+    roi[0] = 0; roi[1] = 1000;
+    roi[2] = 0; roi[3] = 1000;
+    use_TW = false;
+}
+
+void roiq::setSize(unsigned int value)
+{
+    //if TW n is in clock-ticks
+    //otherwise n is in # events.
+    n = value;
+    while(q.size() > n)
+        q.pop_back();
+}
+
+void roiq::setROI(int xl, int xh, int yl, int yh)
+{
+    roi[0] = xl; roi[1] = xh;
+    roi[2] = yl; roi[3] = yh;
+}
+
+int roiq::add(const event<AE> &v)
+{
+
+    if(v->x < roi[0] || v->x > roi[1] || v->y < roi[2] || v->y > roi[3])
+        return 0;
+    q.push_front(v);
+    return 1;
+}
+
 /*////////////////////////////////////////////////////////////////////////////*/
 // DELAYCONTROL
 /*////////////////////////////////////////////////////////////////////////////*/
 
-void delayControl::initFilter(int width, int height, int nparticles, int bins,
-                              bool adaptive, int nthreads, double minlikelihood,
-                              double inlierThresh, double randoms, double negativeBias,
-                              int batch_size)
+bool delayControl::configure(yarp::os::ResourceFinder &rf)
 {
-    vpf.initialise(width, height, nparticles, bins, adaptive, nthreads,
-                   minlikelihood, inlierThresh, randoms, negativeBias);
-
-    res.height = height;
-    res.width = width;
-    this->batch_size = batch_size;
-    px = py = pr = 0;
-}
-
-void delayControl::setMinRawLikelihood(double value)
-{
-    if(value > 0) {
-        vpf.setMinLikelihood(value);
+    //module name and control
+    setName((rf.check("name", Value("/vpf")).asString()).c_str());
+    if(!rpcPort.open(getName() + "/cmd")) {
+        yError() << "Could not open rpc port for" << getName();
+        return false;
     }
+    attach(rpcPort);
+
+    //options and parameters
+    px = py = pr = 0;
+    res.height = rf.check("height", Value(240)).asInt();
+    res.width = rf.check("width", Value(304)).asInt();
+    gain = rf.check("gain", Value(0.0005)).asDouble();
+    batch_size = rf.check("batch", Value(0)).asInt();
+    bool adaptivesampling = rf.check("adaptive") &&
+            rf.check("adaptive", yarp::os::Value(true)).asBool();
+    motionVariance = rf.check("variance", yarp::os::Value(0.7)).asDouble();
+    output_sample_delta = rf.check("output_sample", Value(0)).asDouble();
+    resetTimeout = rf.check("reset", yarp::os::Value(1.0)).asDouble();
+
+    //maxRawLikelihood must be set before TrueThreshold
+    maxRawLikelihood  = rf.check("bins", Value(64)).asInt();
+    setTrueThreshold(rf.check("truethresh", yarp::os::Value(0.35)).asDouble());
+
+    vpf.initialise(res.width, res.height,
+                   rf.check("particles", yarp::os::Value(32)).asInt(),
+                   maxRawLikelihood,
+                   adaptivesampling,
+                   rf.check("threads", Value(1)).asInt(),
+                   rf.check("obsthresh", yarp::os::Value(0.2)).asDouble(),
+                   rf.check("obsinlier", yarp::os::Value(1.5)).asDouble(),
+                   rf.check("randoms", yarp::os::Value(0.0)).asDouble(),
+                   rf.check("negbias", yarp::os::Value(10.0)).asDouble());
+
+    yarp::os::Bottle * seed = rf.find("seed").asList();
+    if(seed && seed->size() == 3) {
+        yInfo() << "Setting initial seed state:" << seed->toString();
+        vpf.setSeed(seed->get(0).asDouble(),
+                    seed->get(1).asDouble(),
+                    seed->get(2).asDouble());
+        vpf.resetToSeed();
+    }
+
+    if(!scopePort.open(getName() + "/scope:o"))
+        return false;
+
+    event_output_port.setWriteType(GaussianAE::tag);
+    if(!event_output_port.open(getName() + "/GAE:o"))
+        return false;
+
+    if(!raw_output_port.open(getName() + "/state:o"))
+        return false;
+
+    if(!debugPort.open(getName() + "/debug:o"))
+        return false;
+
+    input_port.setQLimit(rf.check("qlimit", Value(0)).asInt());
+    if(!input_port.open(getName() + "/AE:i"))
+        return false;
+
+    return Thread::start();
+
 }
 
-void delayControl::setFilterInitialState(int x, int y, int r)
+bool delayControl::interruptModule()
 {
-    vpf.setSeed(x, y, r);
-    vpf.resetToSeed();
+    return Thread::stop();
 }
 
-void delayControl::setMaxRawLikelihood(int value)
+bool delayControl::updateModule()
 {
-    maxRawLikelihood = value;
+    if(scopePort.getOutputCount()) {
+        scopePort.prepare() = getTrackingStats();
+        scopePort.write();
+    }
+
+    return Thread::isRunning();
 }
 
-void delayControl::setNegativeBias(int value)
+double delayControl::getPeriod()
 {
-    vpf.setNegativeBias(value);
-}
-
-void delayControl::setInlierParameter(int value)
-{
-    vpf.setInlierParameter(value);
-}
-
-void delayControl::setMotionVariance(double value)
-{
-    motionVariance = value;
+    return 0.2;
 }
 
 void delayControl::setTrueThreshold(double value)
 {
     detectionThreshold = value * maxRawLikelihood;
-}
-
-void delayControl::setAdaptive(double value)
-{
-    vpf.setAdaptive(value);
-}
-
-void delayControl::setGain(double value)
-{
-    gain = value;
-}
-
-void delayControl::setMinToProc(int value)
-{
-    minEvents = value;
-}
-
-void delayControl::setResetTimeout(double value)
-{
-    resetTimeout = value;
-}
-
-void delayControl::setOutputSampleDelta(double value)
-{
-    output_sample_delta = value;
 }
 
 void delayControl::performReset(int x, int y, int r)
@@ -125,29 +199,13 @@ yarp::sig::Vector delayControl::getTrackingStats()
     return stats;
 }
 
-
-bool delayControl::open(std::string name, unsigned int qlimit)
-{
-    input_port.setQLimit(qlimit);
-    if(!input_port.open(name + "/vBottle:i"))
-        return false;
-    event_output_port.setWriteType(GaussianAE::tag);
-    if(!event_output_port.open(name + "/vBottle:o"))
-        return false;
-    if(!raw_output_port.open(name + "/state:o"))
-        return false;
-    if(!debugPort.open(name + "/debug:o"))
-        return false;
-
-    return true;
-}
-
 void delayControl::onStop()
 {
     input_port.close();
     event_output_port.close();
     raw_output_port.close();
     debugPort.close();
+    scopePort.close();
 }
 
 void delayControl::pause()
@@ -155,9 +213,13 @@ void delayControl::pause()
     input_port.interrupt();
 }
 
+void delayControl::resume()
+{
+    input_port.resume();
+}
+
 void delayControl::run()
 {
-
     double Tresample = 0;
     double Tpredict = 0;
     double Tlikelihood = 0;
@@ -175,7 +237,7 @@ void delayControl::run()
 
     //START HERE!!
     const vQueue *q = input_port.read(ystamp);
-    if(!q || isStopping()) return;
+    if(!q || Thread::isStopping()) return;
     vpf.extractTargetPosition(avgx, avgy, avgr);
 
     channel = q->front()->getChannel();
@@ -189,9 +251,6 @@ void delayControl::run()
         if(unprocdqs > 1 && delay > gain)
             targetproc *= (delay / gain);
 
-        //targetproc = minEvents + (int)(delay * gain);
-        //targetproc = M_PI * avgr * minEvents + (int)(delay * gain);
-
         //update the ROI with enough events
         Tgetwindow = yarp::os::Time::now();
         unsigned int addEvents = 0;
@@ -201,10 +260,9 @@ void delayControl::run()
             //if we ran out of events get a new queue
             if(i >= q->size()) {
                 //if(input_port.queryunprocessed() < 3) break;
-                //input_port.scrapQ();
                 i = 0;
                 q = input_port.read(ystamp);
-                if(!q || isStopping()) return;
+                if(!q || Thread::isStopping()) return;
             }
 
             auto v = is_event<AE>((*q)[i]);
@@ -412,40 +470,131 @@ void delayControl::run()
 
 }
 
-/*////////////////////////////////////////////////////////////////////////////*/
-// ROIQ
-/*////////////////////////////////////////////////////////////////////////////*/
 
+#define CMD_HELP  createVocab('h', 'e', 'l', 'p')
+#define CMD_SET   createVocab('s', 'e', 't')
+#define CMD_START createVocab('s', 't', 'a', 'r')
+#define CMD_STOP  createVocab('s', 't', 'o', 'p')
 
-roiq::roiq()
-{
-    roi.resize(4);
-    n = 1000;
-    roi[0] = 0; roi[1] = 1000;
-    roi[2] = 0; roi[3] = 1000;
-    use_TW = false;
-}
+bool delayControl::respond(const yarp::os::Bottle& command,
+                                yarp::os::Bottle& reply) {
 
-void roiq::setSize(unsigned int value)
-{
-    //if TW n is in clock-ticks
-    //otherwise n is in # events.
-    n = value;
-    while(q.size() > n)
-        q.pop_back();
-}
+    //initialise for default response
+    bool error = false;
+    yInfo() << command.size();
+    reply.clear();
 
-void roiq::setROI(int xl, int xh, int yl, int yh)
-{
-    roi[0] = xl; roi[1] = xh;
-    roi[2] = yl; roi[3] = yh;
-}
+    //switch on the command word
+    switch(command.get(0).asVocab()) {
 
-int roiq::add(event<AE> &v)
-{
+    case CMD_HELP:
+    {
+        reply.addString("<<Event-based Particle Filter with Delay Control>>");
+        reply.addString("Set the following parameters with | set <param> "
+                        "<value> |");
+        reply.addString("trackThresh [0-1]");
+        reply.addString("trueThresh [0-1]");
+        reply.addString("gain [0-1]");
+        reply.addString("resetTimeout [0 inf]");
+        reply.addString("negativeBias [0 inf]");
+        reply.addString("motionVar [0 inf]");
+        reply.addString("inlierParam [0 inf]");
+        reply.addString("adaptive [true false]");
+        break;
+    }
+    case CMD_SET:
+    {
 
-    if(v->x < roi[0] || v->x > roi[1] || v->y < roi[2] || v->y > roi[3])
-        return 0;
-    q.push_front(v);
-    return 1;
+        std::string param = command.get(1).asString();
+        double value = command.get(2).asDouble();
+
+        if(param == "trackThresh") {
+            reply.addString("setting tracking parameter to ");
+            reply.addDouble(value);
+            vpf.setMinLikelihood(value);
+        }
+        else if(param == "gain") {
+            reply.addString("gain changed from ");
+            reply.addDouble(gain);
+            gain = value;
+            reply.addString(" to ");
+            reply.addDouble(gain);
+        }
+        else if(param == "trueThresh") {
+            reply.addString("setting true classification parameter to ");
+            reply.addDouble(value);
+            setTrueThreshold(value);
+        }
+        else if(param == "resetTimeout") {
+            reply.addString("resetTimeout changed from ");
+            reply.addDouble(resetTimeout);
+            resetTimeout = value;
+            reply.addString(" to ");
+            reply.addDouble(resetTimeout);
+
+        }
+        else if(param == "negativeBias") {
+            reply.addString("setting the observation negative bias to ");
+            reply.addDouble(value);
+            vpf.setNegativeBias(value);
+        }
+        else if(param == "motionVar") {
+            reply.addString("motionVar changed from ");
+            reply.addDouble(motionVariance);
+            motionVariance = value;
+            reply.addString(" to ");
+            reply.addDouble(motionVariance);
+        }
+        else if(param == "inlierParam") {
+            reply.addString("setting the inlier width to ");
+            reply.addDouble(value);
+            vpf.setInlierParameter(value);
+        }
+        else if(param == "adaptive") {
+            if(value) {
+                reply.addString("setting the resample method = adaptive");
+                vpf.setAdaptive(true);;
+            }
+            else {
+                reply.addString("setting the resample method = every update");
+                vpf.setAdaptive(false);
+            }
+        }
+        else {
+            error = true;
+            reply.addString("incorrect parameter");
+        }
+        break;
+    }
+    case CMD_STOP:
+    {
+        reply.addString("tracking paused");
+        pause();
+        break;
+    }
+    case CMD_START:
+    {
+        if(command.size() == 4) {
+            int x = command.get(1).asInt();
+            int y = command.get(2).asInt();
+            int r = command.get(3).asInt();
+            reply.addString("resetting particle positions to custom positions");
+            performReset(x, y, r);
+        } else {
+            reply.addString("resetting particle positions to seed");
+            performReset();
+        }
+        break;
+    }
+    default:
+    {
+        error = true;
+        break;
+    }
+
+    } //switch
+
+    //return the error - the reply is automatically sent
+    return !error;
+
 }

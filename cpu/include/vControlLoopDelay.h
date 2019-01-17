@@ -25,6 +25,8 @@
 #include "vParticle.h"
 
 using namespace ev;
+using namespace yarp::os;
+using namespace yarp::sig;
 
 /*////////////////////////////////////////////////////////////////////////////*/
 // ROIQ
@@ -41,7 +43,7 @@ public:
     roiq();
     void setSize(unsigned int value);
     void setROI(int xl, int xh, int yl, int yh);
-    int add(event<AE> &v);
+    int add(const event<AE> &v);
 
 };
 
@@ -49,14 +51,16 @@ public:
 // DELAYCONTROL
 /*////////////////////////////////////////////////////////////////////////////*/
 
-class delayControl : public yarp::os::Thread
+class delayControl : public yarp::os::RFModule, public yarp::os::Thread
 {
 private:
 
     //data structures and ports
-    vReadPort<vQueue> input_port;
+    Port rpcPort;
+    vReadPort< vQueue > input_port;
     vWritePort event_output_port;
     BufferedPort<Bottle> raw_output_port;
+    BufferedPort<Vector> scopePort;
     roiq qROI;
     vParticlefilter vpf;
 
@@ -65,7 +69,6 @@ private:
     double avgx, avgy, avgr;
     int maxRawLikelihood;
     double gain;
-    double minEvents;
     int detectionThreshold;
     double resetTimeout;
     double motionVariance;
@@ -80,18 +83,20 @@ private:
     double dr;
     double px, py, pr;
     ev::benchmark cpuusage;
-
-    yarp::os::BufferedPort< yarp::sig::ImageOf< yarp::sig::PixelBgr> > debugPort;
+    BufferedPort< ImageOf<PixelBgr> > debugPort;
 
 
 public:
 
     delayControl() {}
 
+    virtual bool configure(yarp::os::ResourceFinder &rf);
+    virtual bool interruptModule();
+    virtual double getPeriod();
+    virtual bool updateModule();
+    virtual bool respond(const yarp::os::Bottle& command, yarp::os::Bottle& reply);
+
     bool open(std::string name, unsigned int qlimit = 0);
-    void initFilter(int width, int height, int nparticles,
-                    int bins, bool adaptive, int nthreads,
-                    double minlikelihood, double inlierThresh, double randoms, double negativeBias, int batch_size);
     void performReset(int x = -1, int y = -1, int r = -1);
     void setFilterInitialState(int x, int y, int r);
 
@@ -112,6 +117,7 @@ public:
 
     //bool threadInit();
     void pause();
+    void resume();
     void onStop();
     void run();
     //void threadRelease();
