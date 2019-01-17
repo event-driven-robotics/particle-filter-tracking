@@ -23,6 +23,8 @@
 #include <yarp/sig/all.h>
 
 using namespace ev;
+using namespace yarp::os;
+using namespace yarp::sig;
 
 class vParticle;
 
@@ -82,20 +84,12 @@ public:
     inline double queryDistance(int dy, int dx)
     {
         dy += offsety; dx += offsetx;
-//        if(dy < 0 || dy > rows || dx < 0 || dx > cols) {
-//            std::cout << "preComputatedBins not large enough" << std::endl;
-//            return 0.0;
-//        }
         return ds(dy, dx);
     }
 
     inline int queryBinNumber(double dy, double dx)
     {
         dy += offsety; dx += offsetx;
-//        if(dy < 0 || dy > rows || dx < 0 || dx > cols) {
-//            std::cout << "preComputatedBins not large enough" << std::endl;
-//            return 0.0;
-//        }
         return (int)(bs(dy, dx) + 0.5);
     }
 
@@ -115,6 +109,81 @@ public:
     inline double query(int x, int y);
 
 };
+
+class templatedParticle
+{
+protected:
+
+    enum { x = 0, y = 1, s = 2};
+
+    int appearance_offset;
+
+    bool constrain;
+    vector<double> min_state;
+    vector<double> max_state;
+
+    //incremental counters
+    double likelihood, score, min_likelihood, max_likelihood;
+    int n;
+
+    void initialiseAsCircle(int r);
+    void checkConstraints();
+
+public:
+
+    int id;
+    vector<double> state;
+    double weight;
+    ImageOf<PixelFloat> appearance;
+
+    templatedParticle();
+    templatedParticle& operator=(const templatedParticle &rhs);
+
+    bool set_constraints(vector<double> mins, vector<double> maxs)
+    {
+        if(mins.size() != state.size()) return false;
+        if(maxs.size() != state.size()) return false;
+
+        min_state = mins;
+        max_state = maxs;
+        return true;
+    }
+
+    void predict(double sigma);
+
+    void initLikelihood(int windowSize)
+    {
+        likelihood = min_likelihood;
+        score = 0;
+        n = 0;
+    }
+
+    inline void incrementalLikelihood(int vx, int vy, int n)
+    {
+        int index_x = (vx - state[x]) * state[s] + appearance_offset + 0.5;
+        int index_y = (vy - state[y]) * state[s] + appearance_offset + 0.5;
+        score += appearance(index_y, index_x);
+        if(score >= likelihood) {
+            likelihood = score;
+            this->n = n;
+        }
+
+    }
+
+    void concludeLikelihood()
+    {
+        likelihood /= state[s];
+        if(likelihood > max_likelihood) likelihood = max_likelihood;
+        weight *= likelihood;
+    }
+
+    void normaliseWithinPopulation(double normval)
+    {
+        weight *= normval;
+    }
+
+};
+
 
 /*////////////////////////////////////////////////////////////////////////////*/
 //VPARTICLETRACKER
@@ -157,7 +226,6 @@ private:
 public:
 
     double score;
-
 
     vParticle();
     vParticle& operator=(const vParticle &rhs);
@@ -207,8 +275,6 @@ public:
         //int a = 0.5 + (angbuckets-1) * (atan2(dy, dx) + M_PI) / (2.0 * M_PI);
         int a = pcb->queryBinNumber((int)dy, (int)dx);
 
-        //OPTION 2
-
         if(sqrd > 1.0 + inlierParameter)
             return;
 
@@ -232,33 +298,6 @@ public:
         }
 
         return;
-
-
-        //ORIGINAL
-//        if(sqrd > inlierParameter) {
-//            return;
-//        }
-
-//        if(sqrd > -inlierParameter) {
-//            //int a = 0.5 + (angbuckets-1) * (atan2(dy, dx) + M_PI) / (2.0 * M_PI);
-
-//            //int a = pcb->queryBinNumber((int)dy, (int)dx);
-
-//            if(!angdist[a]) {
-//                inlierCount++;
-//                angdist[a] = 1;
-
-//                score = inlierCount - (negativeScaler * outlierCount);
-//                if(score >= likelihood) {
-//                    likelihood = score;
-//                    nw = n;
-//                }
-
-//            }
-
-//        } else {
-//            outlierCount++;
-//        }
 
     }
 

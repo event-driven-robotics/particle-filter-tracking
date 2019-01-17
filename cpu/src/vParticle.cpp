@@ -535,3 +535,80 @@ void vPartObsThread::run()
     }
 
 }
+
+
+/*////////////////////////////////////////////////////////////////////////////*/
+// templatedParticle
+/*////////////////////////////////////////////////////////////////////////////*/
+
+templatedParticle::templatedParticle()
+{
+
+    initialiseAsCircle(15);
+
+}
+
+templatedParticle& templatedParticle::operator=(const templatedParticle &rhs)
+{
+    this->state = rhs.state;
+    this->weight = rhs.weight;
+    return *this;
+}
+
+
+void templatedParticle::initialiseAsCircle(int r)
+{
+    appearance.resize(r*2+1, r*2+1);
+    appearance.zero();
+    appearance_offset = r;
+    double negative_region = -2.0 * 64 / (M_PI * r * r);
+    max_likelihood = 0;
+
+    for(size_t y = 0; y < appearance.height(); y++) {
+        for(size_t x = 0; x < appearance.width(); x++) {
+
+            double d = sqrt(y - appearance_offset) * (y - appearance_offset) +
+                    (x - appearance_offset) * (x - appearance_offset) - r;
+
+            if(d > 2.0)
+                appearance(y, x) = 0.0;
+
+            else if(d < -2.0)
+                appearance(y, x) = negative_region;
+
+            else if(d < 1.0 || d > -1.0)
+            {
+                appearance(y, x) = 1.0;
+                max_likelihood++;
+                min_likelihood++;
+            }
+            else
+            {
+                appearance(y, x) = (fabs(d) - 1.0);
+                max_likelihood += appearance(y, x);
+            }
+        }
+    }
+
+    min_likelihood = 1.0 / min_likelihood;
+
+}
+
+void templatedParticle::predict(double sigma)
+{
+    state[x] = generateUniformNoise(state[x], sigma);
+    state[y] = generateUniformNoise(state[y], sigma);
+    state[s] = generateUniformNoise(state[s], sigma);
+
+    if(constrain) checkConstraints();
+}
+
+void templatedParticle::checkConstraints()
+{
+    for(size_t i = 0; i < state.size(); i++) {
+        if(state[i] < min_state[i])
+            state[i] = min_state[i];
+        if(state[i] > max_state[i])
+            state[i] = max_state[i];
+    }
+}
