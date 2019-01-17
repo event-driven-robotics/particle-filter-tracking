@@ -35,7 +35,7 @@ class roiq
 {
 public:
 
-    vQueue q;
+    deque<AE> q;
     unsigned int n;
     yarp::sig::Vector roi;
     bool use_TW;
@@ -43,7 +43,7 @@ public:
     roiq();
     void setSize(unsigned int value);
     void setROI(int xl, int xh, int yl, int yh);
-    int add(const event<AE> &v);
+    int add(const AE &v);
 
 };
 
@@ -57,7 +57,7 @@ private:
 
     //data structures and ports
     Port rpcPort;
-    vReadPort< vQueue > input_port;
+    vReadPort< vector<AE> > input_port;
     vWritePort event_output_port;
     BufferedPort<Bottle> raw_output_port;
     BufferedPort<Vector> scopePort;

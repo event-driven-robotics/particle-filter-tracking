@@ -69,10 +69,10 @@ void roiq::setROI(int xl, int xh, int yl, int yh)
     roi[2] = yl; roi[3] = yh;
 }
 
-int roiq::add(const event<AE> &v)
+int roiq::add(const AE &v)
 {
 
-    if(v->x < roi[0] || v->x > roi[1] || v->y < roi[2] || v->y > roi[3])
+    if(v.x < roi[0] || v.x > roi[1] || v.y < roi[2] || v.y > roi[3])
         return 0;
     q.push_front(v);
     return 1;
@@ -236,11 +236,11 @@ void delayControl::run()
         qROI.setSize(50);
 
     //START HERE!!
-    const vQueue *q = input_port.read(ystamp);
+    const vector<AE> *q = input_port.read(ystamp);
     if(!q || Thread::isStopping()) return;
     vpf.extractTargetPosition(avgx, avgy, avgr);
 
-    channel = q->front()->getChannel();
+    channel = q->front().getChannel();
 
     while(true) {
 
@@ -265,8 +265,8 @@ void delayControl::run()
                 if(!q || Thread::isStopping()) return;
             }
 
-            auto v = is_event<AE>((*q)[i]);
-            addEvents += qROI.add(v);
+            //auto v = is_event<AE>((*q)[i]);
+            addEvents += qROI.add((*q)[i]);
             //if(breakOnAdded) testedEvents = addEvents;
             //else testedEvents++;
             testedEvents++;
@@ -277,9 +277,9 @@ void delayControl::run()
         //get the current time
         int currentstamp = 0;
         if(i >= q->size())
-            currentstamp = (*q)[i-1]->stamp;
+            currentstamp = (*q)[i-1].stamp;
         else
-            currentstamp = (*q)[i]->stamp;
+            currentstamp = (*q)[i].stamp;
 
         if(batch_size)
             qROI.setSize(batch_size);
@@ -307,7 +307,7 @@ void delayControl::run()
         }
 
         //calculate the temporal window of the q
-        double tw = qROI.q.front()->stamp - qROI.q.back()->stamp;
+        double tw = qROI.q.front().stamp - qROI.q.back().stamp;
         if(tw < 0) tw += vtsHelper::max_stamp;
 
         Tresample = yarp::os::Time::now();

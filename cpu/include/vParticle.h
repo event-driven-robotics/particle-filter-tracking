@@ -26,7 +26,7 @@ using namespace ev;
 
 class vParticle;
 
-void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, ev::vQueue &q, int offsetx = 0);
+void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q, int offsetx = 0);
 
 void drawcircle(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, int cx, int cy, int cr, int id = 0);
 
@@ -298,12 +298,12 @@ private:
     double normval;
 
     std::vector<vParticle> *particles;
-    const ev::vQueue *stw;
+    const deque<AE> *stw;
 
 public:
 
     vPartObsThread(int pStart, int pEnd);
-    void setDataSources(std::vector<vParticle> *particles, const ev::vQueue *stw);
+    void setDataSources(std::vector<vParticle> *particles, const deque<AE> *stw);
     void process();
     double waittilldone();
 
@@ -356,7 +356,7 @@ public:
     void setNegativeBias(double value);
     void setAdaptive(bool value = true);
 
-    void performObservation(const vQueue &q);
+    void performObservation(const deque<AE> &q);
     void extractTargetPosition(double &x, double &y, double &r);
     void extractTargetWindow(double &tw);
     void performResample();

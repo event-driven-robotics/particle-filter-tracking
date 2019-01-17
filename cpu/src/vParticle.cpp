@@ -54,7 +54,7 @@ double generateUniformNoise(double mu, double sigma)
     return mu + rand() * (2.0 * sigma / RAND_MAX) - sigma;
 }
 
-void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, ev::vQueue &q,
+void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q,
                 int offsetx) {
 
     if(q.empty()) return;
@@ -62,8 +62,8 @@ void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, ev::vQueue &q,
     //draw oldest first
     for(int i = (int)q.size()-1; i >= 0; i--) {
         double p = (double)i / (double)q.size();
-        auto v = is_event<AE>(q[i]);
-        image(v->x + offsetx, v->y) =
+        //auto v = is_event<AE>(q[i]);
+        image(q[i].x + offsetx, q[i].y) =
                 yarp::sig::PixelBgr(255 * (1-p), 0, 255);
     }
 }
@@ -368,7 +368,7 @@ void vParticlefilter::setAdaptive(bool value)
     adaptive = value;
 }
 
-void vParticlefilter::performObservation(const vQueue &q)
+void vParticlefilter::performObservation(const deque<AE> &q)
 {
     double normval = 0.0;
     if(nthreads == 1) {
@@ -380,8 +380,8 @@ void vParticlefilter::performObservation(const vQueue &q)
 
         for(int i = 0; i < nparticles; i++) {
             for(int j = 0; j < (int)q.size(); j++) {
-                AE* v = read_as<AE>(q[j]);
-                ps[i].incrementalLikelihood(v->x, v->y, j);
+                //AE* v = read_as<AE>(q[j]);
+                ps[i].incrementalLikelihood(q[j].x, q[j].y, j);
             }
         }
 
@@ -487,7 +487,7 @@ vPartObsThread::vPartObsThread(int pStart, int pEnd)
 }
 
 void vPartObsThread::setDataSources(std::vector<vParticle> *particles,
-                                    const vQueue *stw)
+                                    const deque<AE> *stw)
 {
     this->particles = particles;
     this->stw = stw;
@@ -519,8 +519,8 @@ void vPartObsThread::run()
 
         for(int i = pStart; i < pEnd; i++) {
             for(int j = 0; j < nw; j++) {
-                AE* v = read_as<AE>((*stw)[j]);
-                (*particles)[i].incrementalLikelihood(v->x, v->y, j);
+                //AE* v = read_as<AE>((*stw)[j]);
+                (*particles)[i].incrementalLikelihood((*stw)[j].x, (*stw)[j].y, j);
             }
         }
 
