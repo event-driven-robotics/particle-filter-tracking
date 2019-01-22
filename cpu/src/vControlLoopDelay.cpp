@@ -366,6 +366,7 @@ void delayControl::run()
                 Bottle &next_sample = raw_output_port.prepare();
                 next_sample.clear();
                 next_sample.addDouble(currentstamp);
+                next_sample.addDouble(Time::now());
                 next_sample.addDouble(avgx);
                 next_sample.addDouble(avgy);
                 next_sample.addDouble(avgr);
