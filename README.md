@@ -2,6 +2,8 @@
 
 The algorithm performs tracking of a circle-shaped target given the event-stream from an event-camera. Two hardware implementations are provided:
 
+![cpu/spinnaker](misc/system.png)
+
 ## CPU
 
 A C++ YARP module that runs the algorithm on a standard CPU.
