@@ -7,8 +7,8 @@ The algorithm performs tracking of a circle-shaped target given the event-stream
 A C++ YARP module that runs the algorithm on a standard CPU.
 
 #### How to build
-1. install YARP
-1. install event-driven
+1. install [YARP](https://github.com/robotology/yarp)
+1. install [event-driven](https://github.com/robotology/event-driven)
 1. make sure both YARP and event-driven can be found on the environment path / project path
 1. clone this repository (e.g. into `~/projects/particle-filter-tracking`)
 1. cd `~/projects/particle-filter-tracking` && mkdir build && cd build
@@ -20,9 +20,9 @@ A C++ YARP module that runs the algorithm on a standard CPU.
 
 1. yarpserver --write
 1. yarpmanager
-1. open the provided yarpmanager application (particle-filter-tracking/cpu/cpu-tracking.xml)
+1. open the provided yarpmanager application (`particle-filter-tracking/cpu/app_cpu_tracking.xml`)
 1. run all
-1. open a dataset (example here: ) with the yarpdataplayer
+1. open a dataset (example TBA) with the yarpdataplayer
 1. connect all
 1. play the dataset on the yarpdataplayer
 
