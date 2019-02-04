@@ -1,14 +1,15 @@
 
 figure(1); clf; hold on;
 ts_start = 0; ts_end = 20;
-dataset_dirs = {'20_512', 'difficult1'};
+dataset_dirs = {'C:\Users\AGlover\Documents\workspace\dump\trackingcomparison3\20_512', ...
+'C:\Users\AGlover\Documents\workspace\dump\trackingcomparison2\difficult1'};
 linestyles = {'--', '-'};
 linewidths = {2, 1};
 
 for ic = 1:size(dataset_dirs, 2)
     
-    gt_file = [root_dir dataset_dirs{ic} '\ATIS\data.log.GT'];
-    raw_file = [root_dir dataset_dirs{ic} '\ATIS\data.log.txt'];
+    gt_file = [dataset_dirs{ic} '\ATIS\data.log.GT'];
+    raw_file = [dataset_dirs{ic} '\ATIS\data.log.txt'];
 
     disp('Importing groud truth ... ');
     GT = importdata(gt_file);
@@ -23,9 +24,10 @@ for ic = 1:size(dataset_dirs, 2)
     subplot(2, 1, 1); hold on;
     dx = diff(GT(ts_inc, 2));
     dy = diff(GT(ts_inc, 3));
+    dt = diff(GT(ts_inc, 1));
     temp_timevalues = GT(ts_inc, 1);
     temp_timevalues = temp_timevalues(1:end-1); %./ diff(GT(ts_inc, 1))
-    plot(temp_timevalues, sqrt(dx.^2 + dy.^2), 'color', c(3+ic, :), ...
+    plot(temp_timevalues, sqrt(dx.^2 + dy.^2)./dt, 'color', c(3+ic, :), ...
         'linestyle', linestyles{ic}, 'linewidth', linewidths{ic});
     drawnow;
     
@@ -49,28 +51,32 @@ for ic = 1:size(dataset_dirs, 2)
     
 end
 
-subplot(2, 1, 1);
-%xlabel('Time (s)');
-ylabel('Target Speed (pix./s)');
-set(findall(gcf,'-property','FontSize'),'FontSize',16);
-set(findall(gcf,'-property','FontName'),'FontName','Times');
-legend('Trial n_p=20, n_v=512', 'Unconstrained Motion', 'location', 'northwest');
-box on;
-sp1_labl_pos = get(get(gca, 'ylabel'), 'position');
-
+%name the axes
 subplot(2, 1, 2);
 xlabel('Time (s)');
-ylabel('Event-rate (10e6 ev./s)');
+ylabel('Event-rate (1e6 ev./s)');
+box on;
+subplot(2, 1, 1);
+ylabel('Target Speed (pix./s)');
+box on;
+
+%set to correct font
 set(findall(gcf,'-property','FontSize'),'FontSize',16);
 set(findall(gcf,'-property','FontName'),'FontName','Times');
+
+legend('Trial n_p=20, n_v=512', 'Unconstrained Motion', 'location', 'northwest');
 set(legend, 'fontsize', 12);
-box on;
+
+%move the y label over
+subplot(2, 1, 2);
+sp1_labl_pos = get(get(gca, 'ylabel'), 'position');
+subplot(2, 1, 1);
 sp2_labl_pos = get(get(gca, 'ylabel'), 'position');
 sp2_labl_pos(1) = sp1_labl_pos(1);
 set(get(gca, 'ylabel'), 'position', sp2_labl_pos);
 
 set(1,'Units','Inches');
-set(1, 'position', [2.4 8 7.95 4.375]);
+set(1, 'position', [2.4028 7.2708 8.7569 5.1042]);
 
 disp('Done');
 
