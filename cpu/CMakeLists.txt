@@ -29,5 +29,5 @@ install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 yarp_install(FILES ${PROJECT_NAME}.ini DESTINATION ${ICUBCONTRIB_CONTEXTS_INSTALL_DIR}/eventdriven)
 
 if(USE_QTCREATOR)
-    add_custom_target(${PROJECT_NAME}_docs SOURCES ${PROJECT_NAME}.ini ${PROJECT_NAME}.xml)
+    add_custom_target(${PROJECT_NAME}_docs SOURCES ${PROJECT_NAME}.ini)
 endif(USE_QTCREATOR)
