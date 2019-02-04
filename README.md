@@ -4,6 +4,18 @@ The algorithm performs tracking of a circle-shaped target given the event-stream
 
 ![cpu/spinnaker](misc/system.png)
 
+```
+@inproceedings{Glover2017a,
+address = {Vancouver, Canada},
+author = {Glover, Arren and Bartolozzi, Chiara},
+booktitle = {IEEE International Conference on Intelligent Robots and Systems},
+pages = {3769--3776},
+publisher = {IEEE},
+title = {{Robust Visual Tracking with a Freely-moving Event Camera}},
+year = {2017}
+}
+```
+
 ## CPU
 
 A C++ YARP module that runs the algorithm on a standard CPU.
@@ -79,4 +91,3 @@ And/otherwise:
 
 1. Follow the steps under "Configuration" here http://spinnakermanchester.github.io/graph_front_end/4.0.0/SpiNNakerGraphFrontEndInstall.html to set-up your SpiNNaker board.
 1. `python ~/projects/particle-filter-tracking/spinnaker/pfMain.py`
-
