@@ -6,7 +6,27 @@ The algorithm performs tracking of a circle-shaped target given the event-stream
 
 A C++ YARP module that runs the algorithm on a standard CPU.
 
-- how to compile and run
+#### How to build
+1. install YARP
+1. install event-driven
+1. make sure both YARP and event-driven can be found on the environment path / project path
+1. clone this repository (e.g. into `~/projects/particle-filter-tracking`)
+1. cd `~/projects/particle-filter-tracking` && mkdir build && cd build
+1. cmake ..
+1. make
+1. ensure the bin is found in the environment path
+
+#### How to run
+
+1. yarpserver --write
+1. yarpmanager
+1. open the provided yarpmanager application (particle-filter-tracking/cpu/cpu-tracking.xml)
+1. run all
+1. open a dataset (example here: ) with the yarpdataplayer
+1. connect all
+1. play the dataset on the yarpdataplayer
+
+Note: you can substitute the yarpdataplayer with a live feed of an event-camera if it is yarp-compatible. Please contact the authors for more information if you want to make your camera yarp compatible.
 
 ## SpiNNaker
 
