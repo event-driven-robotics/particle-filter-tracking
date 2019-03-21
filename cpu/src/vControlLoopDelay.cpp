@@ -365,6 +365,13 @@ void delayControl::run()
             if(raw_output_port.getOutputCount()) {
                 Bottle &next_sample = raw_output_port.prepare();
                 next_sample.clear();
+                if(vpf.maxlikelihood < detectionThreshold) {
+                    next_sample.addVocab(createVocab('T', '_', 'S', 'T'));
+                    next_sample.addInt(0);
+                } else {
+                    next_sample.addVocab(createVocab('T', '_', 'S', 'T'));
+                    next_sample.addInt(1);
+                }
                 next_sample.addDouble(currentstamp);
                 next_sample.addDouble(Time::now());
                 next_sample.addDouble(avgx);
@@ -474,8 +481,8 @@ void delayControl::run()
 
 #define CMD_HELP  createVocab('h', 'e', 'l', 'p')
 #define CMD_SET   createVocab('s', 'e', 't')
-#define CMD_START createVocab('s', 't', 'a', 'r')
-#define CMD_STOP  createVocab('s', 't', 'o', 'p')
+#define CMD_START createVocab('S', 'T', 'A', 'R')
+#define CMD_STOP createVocab('S', 'T', 'O', 'P')
 
 bool delayControl::respond(const yarp::os::Bottle& command,
                                 yarp::os::Bottle& reply) {
