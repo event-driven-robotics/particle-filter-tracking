@@ -325,6 +325,7 @@ void delayControl::run()
         Tpredict = yarp::os::Time::now() - Tpredict;
 
         //check for stagnancy
+        int is_tracking = 1;
         if(vpf.maxlikelihood < detectionThreshold) {
 
             if(!stagnantstart) {
@@ -333,6 +334,7 @@ void delayControl::run()
                 if(yarp::os::Time::now() - stagnantstart > resetTimeout) {
                     vpf.resetToSeed();
                     stagnantstart = 0;
+                    is_tracking = 0;
                 }
             }
 
@@ -370,13 +372,8 @@ void delayControl::run()
             if(raw_output_port.getOutputCount()) {
                 Bottle &next_sample = raw_output_port.prepare();
                 next_sample.clear();
-                if(vpf.maxlikelihood < detectionThreshold) {
-                    next_sample.addVocab(createVocab('T', '_', 'S', 'T'));
-                    next_sample.addInt(0);
-                } else {
-                    next_sample.addVocab(createVocab('T', '_', 'S', 'T'));
-                    next_sample.addInt(1);
-                }
+                next_sample.addVocab(createVocab('T', '_', 'S', 'T'));
+                next_sample.addInt(is_tracking);
                 next_sample.addDouble(currentstamp);
                 next_sample.addDouble(Time::now());
                 next_sample.addDouble(avgx);
