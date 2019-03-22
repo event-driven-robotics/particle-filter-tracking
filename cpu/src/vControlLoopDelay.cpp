@@ -103,6 +103,8 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
     motionVariance = rf.check("variance", yarp::os::Value(0.7)).asDouble();
     output_sample_delta = rf.check("output_sample", Value(0)).asDouble();
     resetTimeout = rf.check("reset", yarp::os::Value(1.0)).asDouble();
+    bool start = rf.check("start") &&
+            rf.check("start", yarp::os::Value(true)).asBool();
 
     //maxRawLikelihood must be set before TrueThreshold
     maxRawLikelihood  = rf.check("bins", Value(64)).asInt();
@@ -143,6 +145,9 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
     input_port.setQLimit(rf.check("qlimit", Value(0)).asInt());
     if(!input_port.open(getName() + "/AE:i"))
         return false;
+
+    if(!start)
+        pause();
 
     return Thread::start();
 
