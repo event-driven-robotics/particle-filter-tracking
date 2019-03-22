@@ -73,6 +73,10 @@ typedef enum config_region_elements {
     N_PARTS = 5, WIN_SIZE = 6
 } config_region_elements;
 
+
+//minus one are pre-emptive,
+//zero task priorities are non- queueable and are executed directly from the scheduler,
+//while tasks with priorities set to one and above are queueable
 typedef enum callback_priorities {
     PACKET = 0, SDP_DMA = 1, SEND = 2, FILTER_UPDATE = 3, TIMER = 3,
 } callback_priorities;
