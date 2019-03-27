@@ -233,7 +233,7 @@ void delayControl::run()
     targetproc = 0;
     unsigned int i = 0;
     yarp::os::Stamp ystamp;
-    double stagnantstart = 0;
+    //double stagnantstart = 0;
     int channel;
     if(batch_size)
         qROI.setSize(batch_size);
@@ -324,23 +324,27 @@ void delayControl::run()
         vpf.performPrediction(motionVariance);
         Tpredict = yarp::os::Time::now() - Tpredict;
 
-        //check for stagnancy
         int is_tracking = 1;
-        if(vpf.maxlikelihood < detectionThreshold) {
+        if(vpf.maxlikelihood < detectionThreshold)
+            is_tracking = 0;
 
-            if(!stagnantstart) {
-                stagnantstart = yarp::os::Time::now();
-            } else {
-                if(yarp::os::Time::now() - stagnantstart > resetTimeout) {
-                    vpf.resetToSeed();
-                    stagnantstart = 0;
-                    is_tracking = 0;
-                }
-            }
+//        //check for stagnancy
+//        int is_tracking = 1;
+//        if(vpf.maxlikelihood < detectionThreshold) {
 
-        } else {
-            stagnantstart = 0;
-        }
+//            if(!stagnantstart) {
+//                stagnantstart = yarp::os::Time::now();
+//            } else {
+//                if(yarp::os::Time::now() - stagnantstart > resetTimeout) {
+//                    //vpf.resetToSeed();
+//                    stagnantstart = 0;
+//                    is_tracking = 0;
+//                }
+//            }
+
+//        } else {
+//            stagnantstart = 0;
+//        }
 
         double delta_x = avgx - px;
         double delta_y = avgy - py;
