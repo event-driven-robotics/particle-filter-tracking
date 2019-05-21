@@ -14,8 +14,8 @@
 </module>
 
 <module>
-    <name> vFramer </name>
-    <parameters> --name /vFramer --displays "(0 /left (CIRC AE ISO))" --eventWindow 0.05 --frameRate 20</parameters>
+    <name> vFramerLite </name>
+    <parameters> --name /vFramer --displays "(/left (AE CIRC ISO))" --eventWindow 0.05 --frameRate 20</parameters>
     <node> localhost </node>
 </module>
 
