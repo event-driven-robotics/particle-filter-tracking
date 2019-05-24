@@ -292,7 +292,9 @@ void delayControl::run()
         //do our update!!
         //yarp::os::Time::delay(0.005);
         Tlikelihood = yarp::os::Time::now();
+        yWarning() << "Performing observation";
         vpf.performObservation(qROI.q);
+        yWarning() << "Done";
         Tlikelihood = yarp::os::Time::now() - Tlikelihood;
 
         //set our new position
@@ -454,12 +456,12 @@ void delayControl::run()
                     image(px2, y) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
                 }
 
-                std::vector<vParticle> indexedlist = vpf.getps();
+                std::vector<templatedParticle> indexedlist = vpf.getps();
 
                 for(unsigned int i = 0; i < indexedlist.size(); i++) {
 
-                    int py = indexedlist[i].gety();
-                    int px = indexedlist[i].getx();
+                    int py = indexedlist[i].state[templatedParticle::y];
+                    int px = indexedlist[i].state[templatedParticle::x];
 
                     if(py < 0 || py >= res.height || px < 0 || px >= res.width)
                         continue;

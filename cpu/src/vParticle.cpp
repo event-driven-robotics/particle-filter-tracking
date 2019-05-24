@@ -312,12 +312,15 @@ void vParticlefilter::initialise(int width, int height, int nparticles,
     }
 
 
-    vParticle p;
-    p.attachPCB(&pcb);
-    p.resetWeight(1.0/nparticles);
-    p.setContraints(0, res.width, 0, res.height, rbound_min, rbound_max);
+    templatedParticle p;
+    p.weight = 1.0 / (double)nparticles;
+    vector<double> mins = {0.0, 0.0, (double)rbound_min};
+    vector<double> maxs = {(double)res.width, (double)res.height, (double)rbound_max};
+    p.setConstraints(mins, maxs);
     for(int i = 0; i < this->nparticles; i++) {
-        p.initialiseParameters(i, minlikelihood, negativeBias, inlierThresh, 0, bins);
+        p.id = i;
+
+        //p.initialiseParameters(i, minlikelihood, negativeBias, inlierThresh, 0, bins);
         ps.push_back(p);
         ps_snap.push_back(p);
     }
@@ -334,33 +337,34 @@ void vParticlefilter::resetToSeed()
 {
     if(seedr) {
         for(int i = 0; i < nparticles; i++) {
-            ps[i].initialiseState(seedx, seedy, seedr);
+            ps[i].state = {(double)seedx, (double)seedy, (double)seedr};
         }
     } else {
         for(int i = 0; i < nparticles; i++) {
-            ps[i].initialiseState(seedx, seedy,
-                                  rbound_min + (rbound_max - rbound_min) *
-                                  ((double)rand()/RAND_MAX));
+            ps[i].state = {(double)seedx, (double)seedy, 1.0};
         }
     }
 }
 
 void vParticlefilter::setMinLikelihood(double value)
 {
-    for(int i = 0; i < nparticles; i++)
-        ps[i].updateMinLikelihood(value);
+    yWarning() << "Deprecated";
+    //for(int i = 0; i < nparticles; i++)
+        //ps[i].updateMinLikelihood(value);
 }
 
 void vParticlefilter::setInlierParameter(double value)
 {
-    for(int i = 0; i < nparticles; i++)
-        ps[i].setInlierParameter(value);
+    yWarning() << "Deprecated";
+ //   for(int i = 0; i < nparticles; i++)
+ //       ps[i].setInlierParameter(value);
 }
 
 void vParticlefilter::setNegativeBias(double value)
 {
-    for(int i = 0; i < nparticles; i++)
-        ps[i].setNegativeBias(value);
+    yWarning() << "Deprecated";
+  //  for(int i = 0; i < nparticles; i++)
+   //     ps[i].setNegativeBias(value);
 }
 
 void vParticlefilter::setAdaptive(bool value)
@@ -373,11 +377,13 @@ void vParticlefilter::performObservation(const deque<AE> &q)
     double normval = 0.0;
     if(nthreads == 1) {
 
+        yWarning() << "initialising";
         //START WITHOUT THREAD
         for(int i = 0; i < nparticles; i++) {
             ps[i].initLikelihood(q.size());
         }
 
+        yWarning() << "incremental likelihood";
         for(int i = 0; i < nparticles; i++) {
             for(int j = 0; j < (int)q.size(); j++) {
                 //AE* v = read_as<AE>(q[j]);
@@ -385,9 +391,10 @@ void vParticlefilter::performObservation(const deque<AE> &q)
             }
         }
 
+        yWarning() << "concluding";
         for(int i = 0; i < nparticles; i++) {
             ps[i].concludeLikelihood();
-            normval += ps[i].getw();
+            normval += ps[i].weight;
         }
     } else {
 
@@ -405,8 +412,8 @@ void vParticlefilter::performObservation(const deque<AE> &q)
     pwsumsq = 0;
     maxlikelihood = 0;
     for(int i = 0; i < nparticles; i ++) {
-        ps[i].updateWeightSync(normval);
-        pwsumsq += pow(ps[i].getw(), 2.0);
+        ps[i].normaliseWithinPopulation(normval);
+        pwsumsq += pow(ps[i].weight, 2.0);
         maxlikelihood = std::max(maxlikelihood, ps[i].getl());
     }
 
@@ -417,10 +424,10 @@ void vParticlefilter::extractTargetPosition(double &x, double &y, double &r)
     x = 0; y = 0; r = 0;
 
     for(int i = 0; i < nparticles; i++) {
-        double w = ps[i].getw();
-        x += ps[i].getx() * w;
-        y += ps[i].gety() * w;
-        r += ps[i].getr() * w;
+        double w = ps[i].weight;
+        x += ps[i].state[templatedParticle::x] * w;
+        y += ps[i].state[templatedParticle::y] * w;
+        r += ps[i].state[templatedParticle::s] * w;
     }
 }
 
@@ -429,8 +436,8 @@ void vParticlefilter::extractTargetWindow(double &tw)
     tw = 0;
 
     for(int i = 0; i < nparticles; i++) {
-        double w = ps[i].getw();
-        tw += ps[i].getnw() * w;
+        double w = ps[i].weight;
+        tw += ps[i].getn() * w;
 
     }
 
@@ -443,25 +450,21 @@ void vParticlefilter::performResample()
         double accum = 0;
         for(int i = 0; i < nparticles; i++) {
             ps_snap[i] = ps[i];
-            accum += ps[i].getw();
+            accum += ps[i].weight;
             accum_dist[i] = accum;
         }
 
         //perform the resample
         for(int i = 0; i < nparticles; i++) {
             double rn = nRandoms * (double)rand() / RAND_MAX;
-            if(rn > 1.0)
-                ps[i].randomise(res.width, res.height, rbound_max);
-            else {
                 int j = 0;
                 for(j = 0; j < nparticles; j++)
                     if(accum_dist[j] > rn) break;
                 ps[i] = ps_snap[j];
-            }
         }
     }
-
 }
+
 
 void vParticlefilter::performPrediction(double sigma)
 {
@@ -469,7 +472,7 @@ void vParticlefilter::performPrediction(double sigma)
         ps[i].predict(sigma);
 }
 
-std::vector<vParticle> vParticlefilter::getps()
+std::vector<templatedParticle> vParticlefilter::getps()
 {
     return ps;
 }
@@ -486,7 +489,7 @@ vPartObsThread::vPartObsThread(int pStart, int pEnd)
     done.lock();
 }
 
-void vPartObsThread::setDataSources(std::vector<vParticle> *particles,
+void vPartObsThread::setDataSources(std::vector<templatedParticle> *particles,
                                     const deque<AE> *stw)
 {
     this->particles = particles;
@@ -527,7 +530,7 @@ void vPartObsThread::run()
         normval = 0.0;
         for(int i = pStart; i < pEnd; i++) {
             (*particles)[i].concludeLikelihood();
-            normval += (*particles)[i].getw();
+            normval += (*particles)[i].weight;
         }
 
         done.unlock();

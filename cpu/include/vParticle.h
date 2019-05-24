@@ -95,26 +95,9 @@ public:
 
 };
 
-class projectedModel {
-
-private:
-    yarp::sig::ImageOf<yarp::sig::PixelFloat> projection;
-
-public:
-
-    projectedModel();
-
-    void initialiseCircle(int r);
-
-    inline double query(int x, int y);
-
-};
-
 class templatedParticle
 {
 protected:
-
-    enum { x = 0, y = 1, s = 2};
 
     int appearance_offset;
 
@@ -131,6 +114,8 @@ protected:
 
 public:
 
+    enum { x = 0, y = 1, s = 2};
+
     int id;
     vector<double> state;
     double weight;
@@ -139,7 +124,7 @@ public:
     templatedParticle();
     templatedParticle& operator=(const templatedParticle &rhs);
 
-    bool set_constraints(vector<double> mins, vector<double> maxs)
+    bool setConstraints(vector<double> mins, vector<double> maxs)
     {
         if(mins.size() != state.size()) return false;
         if(maxs.size() != state.size()) return false;
@@ -162,6 +147,8 @@ public:
     {
         int index_x = (vx - state[x]) * state[s] + appearance_offset + 0.5;
         int index_y = (vy - state[y]) * state[s] + appearance_offset + 0.5;
+        if(index_x < 0 || index_y < 0 || index_x >= appearance.width() || index_y >= appearance.height())
+            return;
         score += appearance(index_y, index_x);
         if(score >= likelihood) {
             likelihood = score;
@@ -181,6 +168,9 @@ public:
     {
         weight *= normval;
     }
+
+    double getl() { return likelihood; }
+    double getn() { return n; }
 
 };
 
@@ -298,7 +288,6 @@ public:
         }
 
         return;
-
     }
 
     void concludeLikelihood()
@@ -336,13 +325,13 @@ private:
 
     double normval;
 
-    std::vector<vParticle> *particles;
+    std::vector<templatedParticle> *particles;
     const deque<AE> *stw;
 
 public:
 
     vPartObsThread(int pStart, int pEnd);
-    void setDataSources(std::vector<vParticle> *particles, const deque<AE> *stw);
+    void setDataSources(std::vector<templatedParticle> *particles, const deque<AE> *stw);
     void process();
     double waittilldone();
 
@@ -367,8 +356,8 @@ private:
     double nRandoms;
 
     //data
-    std::vector<vParticle> ps;
-    std::vector<vParticle> ps_snap;
+    std::vector<templatedParticle> ps;
+    std::vector<templatedParticle> ps_snap;
     std::vector<double> accum_dist;
     preComputedBins pcb;
     std::vector<vPartObsThread *> computeThreads;
@@ -401,7 +390,7 @@ public:
     void performResample();
     void performPrediction(double sigma);
 
-    std::vector<vParticle> getps();
+    std::vector<templatedParticle> getps();
 
 };
 
