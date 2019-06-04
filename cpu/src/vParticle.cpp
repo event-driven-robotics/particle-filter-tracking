@@ -605,7 +605,7 @@ void templatedParticle::predict(double sigma)
 {
     state[x] = generateUniformNoise(state[x], sigma);
     state[y] = generateUniformNoise(state[y], sigma);
-    //state[s] = generateUniformNoise(state[s], sigma);
+    state[s] = generateUniformNoise(state[s], 0.05);
 
     if(constrain) checkConstraints();
 

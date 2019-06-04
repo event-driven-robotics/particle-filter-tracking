@@ -164,7 +164,7 @@ public:
     {
         likelihood *= state[s];
         if(likelihood < min_likelihood) {
-            yInfo() << "scaling up likelihood from minimum";
+            //yInfo() << "scaling up likelihood from minimum";
             likelihood = min_likelihood;
         }
         //if(likelihood > max_likelihood) {
