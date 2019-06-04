@@ -292,9 +292,7 @@ void delayControl::run()
         //do our update!!
         //yarp::os::Time::delay(0.005);
         Tlikelihood = yarp::os::Time::now();
-        yWarning() << "Performing observation";
         vpf.performObservation(qROI.q);
-        yWarning() << "Done";
         Tlikelihood = yarp::os::Time::now() - Tlikelihood;
 
         //set our new position

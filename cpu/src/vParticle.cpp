@@ -319,8 +319,6 @@ void vParticlefilter::initialise(int width, int height, int nparticles,
     p.setConstraints(mins, maxs);
     for(int i = 0; i < this->nparticles; i++) {
         p.id = i;
-
-        //p.initialiseParameters(i, minlikelihood, negativeBias, inlierThresh, 0, bins);
         ps.push_back(p);
         ps_snap.push_back(p);
     }
@@ -377,25 +375,22 @@ void vParticlefilter::performObservation(const deque<AE> &q)
     double normval = 0.0;
     if(nthreads == 1) {
 
-        yWarning() << "initialising";
         //START WITHOUT THREAD
         for(int i = 0; i < nparticles; i++) {
             ps[i].initLikelihood(q.size());
         }
 
-        yWarning() << "incremental likelihood";
         for(int i = 0; i < nparticles; i++) {
             for(int j = 0; j < (int)q.size(); j++) {
-                //AE* v = read_as<AE>(q[j]);
                 ps[i].incrementalLikelihood(q[j].x, q[j].y, j);
             }
         }
 
-        yWarning() << "concluding";
         for(int i = 0; i < nparticles; i++) {
             ps[i].concludeLikelihood();
             normval += ps[i].weight;
         }
+
     } else {
 
         //START MULTI-THREAD
@@ -408,6 +403,8 @@ void vParticlefilter::performObservation(const deque<AE> &q)
             normval += computeThreads[k]->waittilldone();
         }
     }
+
+    normval = 1.0 / normval;
 
     pwsumsq = 0;
     maxlikelihood = 0;
@@ -424,10 +421,9 @@ void vParticlefilter::extractTargetPosition(double &x, double &y, double &r)
     x = 0; y = 0; r = 0;
 
     for(int i = 0; i < nparticles; i++) {
-        double w = ps[i].weight;
-        x += ps[i].state[templatedParticle::x] * w;
-        y += ps[i].state[templatedParticle::y] * w;
-        r += ps[i].state[templatedParticle::s] * w;
+        x += ps[i].state[templatedParticle::x] * ps[i].weight;
+        y += ps[i].state[templatedParticle::y] * ps[i].weight;
+        r += ps[i].state[templatedParticle::s] * ps[i].weight;
     }
 }
 
@@ -570,8 +566,8 @@ void templatedParticle::initialiseAsCircle(int r)
     for(size_t y = 0; y < appearance.height(); y++) {
         for(size_t x = 0; x < appearance.width(); x++) {
 
-            double d = sqrt(y - appearance_offset) * (y - appearance_offset) +
-                    (x - appearance_offset) * (x - appearance_offset) - r;
+            double d = sqrt((y - appearance_offset) * (y - appearance_offset) +
+                    (x - appearance_offset) * (x - appearance_offset)) - r;
 
             if(d > 2.0)
                 appearance(y, x) = 0.0;
@@ -579,7 +575,7 @@ void templatedParticle::initialiseAsCircle(int r)
             else if(d < -2.0)
                 appearance(y, x) = negative_region;
 
-            else if(d < 1.0 || d > -1.0)
+            else if(d < 1.0 && d > -1.0)
             {
                 appearance(y, x) = 1.0;
                 max_likelihood++;
@@ -587,13 +583,20 @@ void templatedParticle::initialiseAsCircle(int r)
             }
             else
             {
-                appearance(y, x) = (fabs(d) - 1.0);
+                appearance(y, x) = (2.0 - fabs(d));
                 max_likelihood += appearance(y, x);
             }
         }
     }
 
     min_likelihood = 1.0 / min_likelihood;
+
+    for(size_t y = 0; y < appearance.height(); y++) {
+        for(size_t x = 0; x < appearance.width(); x++) {
+            std::cout << appearance(y, x) << " ";
+        }
+        std::cout << std::endl;
+    }
 
 }
 
@@ -604,14 +607,17 @@ void templatedParticle::predict(double sigma)
     state[s] = generateUniformNoise(state[s], sigma);
 
     if(constrain) checkConstraints();
+
 }
 
 void templatedParticle::checkConstraints()
 {
+
     for(size_t i = 0; i < state.size(); i++) {
         if(state[i] < min_state[i])
             state[i] = min_state[i];
         if(state[i] > max_state[i])
             state[i] = max_state[i];
     }
+
 }

@@ -126,11 +126,12 @@ public:
 
     bool setConstraints(vector<double> mins, vector<double> maxs)
     {
-        if(mins.size() != state.size()) return false;
-        if(maxs.size() != state.size()) return false;
+        //if(mins.size() != state.size()) return false;
+        //if(maxs.size() != state.size()) return false;
 
         min_state = mins;
         max_state = maxs;
+        constrain = true;
         return true;
     }
 
@@ -149,6 +150,7 @@ public:
         int index_y = (vy - state[y]) * state[s] + appearance_offset + 0.5;
         if(index_x < 0 || index_y < 0 || index_x >= appearance.width() || index_y >= appearance.height())
             return;
+
         score += appearance(index_y, index_x);
         if(score >= likelihood) {
             likelihood = score;
