@@ -289,9 +289,8 @@ void vParticlefilter::initialise(int width, int height, int nparticles,
     this->adaptive = adaptive;
     this->nthreads = nthreads;
     this->nRandoms = randoms + 1.0;
-    rbound_min = res.width/18;
-    rbound_max = res.width/5;
-    pcb.configure(res.height, res.width, rbound_max, bins);
+
+    //pcb.configure(res.height, res.width, rbound_max, bins);
     setSeed(res.width/2.0, res.height/2.0);
 
     ps.clear();
@@ -314,8 +313,8 @@ void vParticlefilter::initialise(int width, int height, int nparticles,
 
     templatedParticle p;
     p.weight = 1.0 / (double)nparticles;
-    vector<double> mins = {0.0, 0.0, (double)rbound_min};
-    vector<double> maxs = {(double)res.width, (double)res.height, (double)rbound_max};
+    vector<double> mins = {0.0, 0.0, 0.2};
+    vector<double> maxs = {(double)res.width, (double)res.height, 0.3};
     p.setConstraints(mins, maxs);
     for(int i = 0; i < this->nparticles; i++) {
         p.id = i;
@@ -423,7 +422,8 @@ void vParticlefilter::extractTargetPosition(double &x, double &y, double &r)
     for(int i = 0; i < nparticles; i++) {
         x += ps[i].state[templatedParticle::x] * ps[i].weight;
         y += ps[i].state[templatedParticle::y] * ps[i].weight;
-        r += ps[i].state[templatedParticle::s] * ps[i].weight;
+        //r += ps[i].state[templatedParticle::s] * ps[i].weight;
+        r += ps[i].getAbsoluteSize() * ps[i].weight;
     }
 }
 
@@ -560,7 +560,8 @@ void templatedParticle::initialiseAsCircle(int r)
     appearance.resize(r*2+1, r*2+1);
     appearance.zero();
     appearance_offset = r;
-    double negative_region = -2.0 * 64 / (M_PI * r * r);
+    //double negative_region = -2.0 * 64 / (M_PI * r * r);
+    double negative_region = -1;
     max_likelihood = 0;
 
     for(size_t y = 0; y < appearance.height(); y++) {
@@ -604,7 +605,7 @@ void templatedParticle::predict(double sigma)
 {
     state[x] = generateUniformNoise(state[x], sigma);
     state[y] = generateUniformNoise(state[y], sigma);
-    state[s] = generateUniformNoise(state[s], sigma);
+    //state[s] = generateUniformNoise(state[s], sigma);
 
     if(constrain) checkConstraints();
 

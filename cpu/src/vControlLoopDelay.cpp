@@ -298,6 +298,7 @@ void delayControl::run()
         //set our new position
         dx = avgx, dy = avgy, dr = avgr;
         vpf.extractTargetPosition(avgx, avgy, avgr);
+        //yWarning() << avgx << avgy << avgr;
         dx = avgx - dx; dy = avgy - dy; dr = avgr - dr;
         double roisize = avgr + 10;
         qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);

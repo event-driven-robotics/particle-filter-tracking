@@ -132,6 +132,7 @@ public:
         min_state = mins;
         max_state = maxs;
         constrain = true;
+
         return true;
     }
 
@@ -148,7 +149,7 @@ public:
     {
         int index_x = (vx - state[x]) * state[s] + appearance_offset + 0.5;
         int index_y = (vy - state[y]) * state[s] + appearance_offset + 0.5;
-        if(index_x < 0 || index_y < 0 || index_x >= appearance.width() || index_y >= appearance.height())
+        if(index_x < 0 || index_y < 0 || index_x >= (int)appearance.width() || index_y >= (int)appearance.height())
             return;
 
         score += appearance(index_y, index_x);
@@ -161,8 +162,15 @@ public:
 
     void concludeLikelihood()
     {
-        likelihood /= state[s];
-        if(likelihood > max_likelihood) likelihood = max_likelihood;
+        likelihood *= state[s];
+        if(likelihood < min_likelihood) {
+            yInfo() << "scaling up likelihood from minimum";
+            likelihood = min_likelihood;
+        }
+        //if(likelihood > max_likelihood) {
+        //    yInfo() << "scaling down likelihood from maximum";
+         //   likelihood = max_likelihood;
+        //}
         weight *= likelihood;
     }
 
@@ -173,6 +181,10 @@ public:
 
     double getl() { return likelihood; }
     double getn() { return n; }
+    double getAbsoluteSize() {
+        //yInfo() << state[s] << appearance_offset;
+        return appearance_offset / state[s];
+    }
 
 };
 
