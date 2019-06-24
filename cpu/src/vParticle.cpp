@@ -314,7 +314,7 @@ void vParticlefilter::initialise(int width, int height, int nparticles,
     templatedParticle p;
     p.weight = 1.0 / (double)nparticles;
     vector<double> mins = {0.0, 0.0, 0.2};
-    vector<double> maxs = {(double)res.width, (double)res.height, 0.3};
+    vector<double> maxs = {(double)res.width, (double)res.height, 0.7};
     p.setConstraints(mins, maxs);
     for(int i = 0; i < this->nparticles; i++) {
         p.id = i;
