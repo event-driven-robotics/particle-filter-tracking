@@ -28,6 +28,12 @@ using namespace ev;
 using namespace yarp::os;
 using namespace yarp::sig;
 
+void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q, int offsetx = 0);
+
+void drawcircle(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, int cx, int cy, int cr, int id = 0);
+
+void drawDistribution(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, std::vector<vParticle> &indexedlist);
+
 /*////////////////////////////////////////////////////////////////////////////*/
 // ROIQ
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -63,13 +69,14 @@ private:
     BufferedPort<Vector> scopePort;
     roiq qROI;
     vParticlefilter vpf;
+    Mutex m;
 
     //variables
     resolution res;
     double avgx, avgy, avgr;
     int maxRawLikelihood;
     double gain;
-    int detectionThreshold;
+    double detectionThreshold;
     double resetTimeout;
     double motionVariance;
     int batch_size;

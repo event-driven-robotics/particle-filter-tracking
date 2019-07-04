@@ -17,12 +17,11 @@
  */
 
 #include "vParticle.h"
-#include <cmath>
 #include <limits>
-#include <algorithm>
 
 using ev::event;
 using ev::AddressEvent;
+
 
 double generateGaussianNoise(double mu, double sigma)
 {
@@ -54,78 +53,14 @@ double generateUniformNoise(double mu, double sigma)
     return mu + rand() * (2.0 * sigma / RAND_MAX) - sigma;
 }
 
-void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q,
-                int offsetx) {
 
-    if(q.empty()) return;
-
-    //draw oldest first
-    for(int i = (int)q.size()-1; i >= 0; i--) {
-        double p = (double)i / (double)q.size();
-        //auto v = is_event<AE>(q[i]);
-        image(q[i].x + offsetx, q[i].y) =
-                yarp::sig::PixelBgr(255 * (1-p), 0, 255);
-    }
-}
-
-void drawcircle(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, int cx, int cy,
-                int cr, int id)
-{
-
-    for(int y = -cr; y <= cr; y++) {
-        for(int x = -cr; x <= cr; x++) {
-            if(fabs(sqrt(pow(x, 2.0) + pow(y, 2.0)) - (double)cr) > 0.8)
-                continue;
-            int px = cx + x; int py = cy + y;
-            if(py<0 || py>(int)image.height()-1 || px<0 || px>(int)image.width()-1)
-                continue;
-            switch(id) {
-            case(0): //green
-                image(px, py) = yarp::sig::PixelBgr(0, 255, 0);
-                break;
-            case(1): //blue
-                image(px, py) = yarp::sig::PixelBgr(0, 0, 255);
-                break;
-            case(2): //red
-                image(px, py) = yarp::sig::PixelBgr(255, 0, 0);
-                break;
-            default:
-                image(px, py) = yarp::sig::PixelBgr(255, 255, 0);
-                break;
-
-            }
-
-        }
-    }
-
-}
-
-void drawDistribution(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, std::vector<templatedParticle> &indexedlist)
-{
-
-    double sum = 0;
-    std::vector<double> weights;
-    for(unsigned int i = 0; i < indexedlist.size(); i++) {
-        weights.push_back(indexedlist[i].weight);
-        sum += weights.back();
-    }
-
-    std::sort(weights.begin(), weights.end());
-
-
-    image.resize(indexedlist.size(), 100);
-    image.zero();
-    for(unsigned int i = 0; i < weights.size(); i++) {
-        image(weights.size() - 1 -  i, 99 - weights[i]*100) = yarp::sig::PixelBgr(255, 255, 255);
-    }
-}
 
 /*////////////////////////////////////////////////////////////////////////////*/
 //VPARTICLEFILTER
 /*////////////////////////////////////////////////////////////////////////////*/
 
 
-void vParticlefilter::initialise(int width, int height, int nparticles,
+double vParticlefilter::initialise(int width, int height, int nparticles,
                                  bool adaptive, int nthreads)
 {
     res.width = width;
@@ -171,6 +106,8 @@ void vParticlefilter::initialise(int width, int height, int nparticles,
     }
 
     resetToSeed();
+
+    return max_likelihood;
 }
 
 void vParticlefilter::setAppearance(const ImageOf<PixelFloat> &new_appearance,

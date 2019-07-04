@@ -28,11 +28,7 @@ using namespace yarp::sig;
 
 class vParticle;
 
-void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q, int offsetx = 0);
 
-void drawcircle(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, int cx, int cy, int cr, int id = 0);
-
-void drawDistribution(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, std::vector<vParticle> &indexedlist);
 
 /*////////////////////////////////////////////////////////////////////////////*/
 // templatedParticle
@@ -185,7 +181,7 @@ public:
 
     vParticlefilter() {}
 
-    void initialise(int width, int height, int nparticles, bool adaptive,
+    double initialise(int width, int height, int nparticles, bool adaptive,
                     int nthreads);
 
     void setSeed(int x, int y, int r = 0);
