@@ -96,29 +96,22 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
     px = py = pr = 0;
     res.height = rf.check("height", Value(240)).asInt();
     res.width = rf.check("width", Value(304)).asInt();
-    gain = rf.check("gain", Value(0.0005)).asDouble();
+    gain = rf.check("gain", Value(0.01)).asDouble();
     batch_size = rf.check("batch", Value(0)).asInt();
     bool adaptivesampling = rf.check("adaptive") &&
             rf.check("adaptive", yarp::os::Value(true)).asBool();
-    motionVariance = rf.check("variance", yarp::os::Value(0.7)).asDouble();
+    motionVariance = rf.check("variance", yarp::os::Value(2.0)).asDouble();
     output_sample_delta = rf.check("output_sample", Value(0)).asDouble();
-    resetTimeout = rf.check("reset", yarp::os::Value(1.0)).asDouble();
     bool start = rf.check("start") &&
             rf.check("start", yarp::os::Value(true)).asBool();
 
     //maxRawLikelihood must be set before TrueThreshold
-    maxRawLikelihood  = rf.check("bins", Value(64)).asInt();
     setTrueThreshold(rf.check("truethresh", yarp::os::Value(0.35)).asDouble());
 
     vpf.initialise(res.width, res.height,
-                   rf.check("particles", yarp::os::Value(32)).asInt(),
-                   maxRawLikelihood,
+                   rf.check("particles", yarp::os::Value(20)).asInt(),
                    adaptivesampling,
-                   rf.check("threads", Value(1)).asInt(),
-                   rf.check("obsthresh", yarp::os::Value(0.2)).asDouble(),
-                   rf.check("obsinlier", yarp::os::Value(1.5)).asDouble(),
-                   rf.check("randoms", yarp::os::Value(0.0)).asDouble(),
-                   rf.check("negbias", yarp::os::Value(10.0)).asDouble());
+                   rf.check("threads", Value(1)).asInt());
 
     yarp::os::Bottle * seed = rf.find("seed").asList();
     if(seed && seed->size() == 3) {
@@ -264,16 +257,13 @@ void delayControl::run()
 
             //if we ran out of events get a new queue
             if(i >= q->size()) {
-                //if(input_port.queryunprocessed() < 3) break;
                 i = 0;
                 q = input_port.read(ystamp);
-                if(!q || Thread::isStopping()) return;
+                if(!q || Thread::isStopping())
+                    return;
             }
 
-            //auto v = is_event<AE>((*q)[i]);
             addEvents += qROI.add((*q)[i]);
-            //if(breakOnAdded) testedEvents = addEvents;
-            //else testedEvents++;
             testedEvents++;
             i++;
         }
@@ -321,31 +311,12 @@ void delayControl::run()
         Tresample = yarp::os::Time::now() - Tresample;
 
         Tpredict = yarp::os::Time::now();
-        //vpf.performPrediction(std::max(addEvents / (5.0 * avgr), 0.7));
         vpf.performPrediction(motionVariance);
         Tpredict = yarp::os::Time::now() - Tpredict;
 
         int is_tracking = 1;
         if(vpf.maxlikelihood < detectionThreshold)
             is_tracking = 0;
-
-//        //check for stagnancy
-//        int is_tracking = 1;
-//        if(vpf.maxlikelihood < detectionThreshold) {
-
-//            if(!stagnantstart) {
-//                stagnantstart = yarp::os::Time::now();
-//            } else {
-//                if(yarp::os::Time::now() - stagnantstart > resetTimeout) {
-//                    //vpf.resetToSeed();
-//                    stagnantstart = 0;
-//                    is_tracking = 0;
-//                }
-//            }
-
-//        } else {
-//            stagnantstart = 0;
-//        }
 
         double delta_x = avgx - px;
         double delta_y = avgy - py;
@@ -394,10 +365,6 @@ void delayControl::run()
 
 
         }
-
-
-
-
 
         static double prev_update_time = Tgetwindow;
         filterPeriod = Time::now() - prev_update_time;
