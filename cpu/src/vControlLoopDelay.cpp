@@ -44,16 +44,15 @@ int main(int argc, char * argv[])
 }
 
 void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q,
-                int offsetx) {
+                int offsetx = 0) {
 
     if(q.empty()) return;
 
     //draw oldest first
     for(int i = (int)q.size()-1; i >= 0; i--) {
         double p = (double)i / (double)q.size();
-        //auto v = is_event<AE>(q[i]);
-        image(q[i].x + offsetx, q[i].y) =
-                yarp::sig::PixelBgr(255 * (1-p), 0, 255);
+        //image(q[i].x + offsetx, q[i].y).b =  255 * (1-p);
+        image(q[i].x + offsetx, q[i].y).b =  255;
     }
 }
 
@@ -107,6 +106,38 @@ void drawDistribution(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, std::vecto
     for(unsigned int i = 0; i < weights.size(); i++) {
         image(weights.size() - 1 -  i, 99 - weights[i]*100) = yarp::sig::PixelBgr(255, 255, 255);
     }
+}
+
+void drawTemplate(ImageOf<PixelBgr> &image, ImageOf<PixelFloat> &appearance,
+                  double t_x, double t_y, double t_r)
+{
+    int mid_x = appearance.width() / 2;
+    int mid_y = appearance.height() / 2;
+    double t_s = t_r / mid_x;
+
+    for(auto x = 0; x < appearance.width(); x++) {
+        for(auto y = 0; y < appearance.height(); y++) {
+
+            int i_x = t_x + ((x - mid_x) * t_s);
+            i_x = std::max(std::min(i_x, (int)(image.width() - 1)), 0);
+            int i_y = t_y + ((y - mid_y) * t_s);
+            i_y = std::max(std::min(i_y, (int)(image.height() - 1)), 0);
+
+            PixelBgr &p = image(i_x, i_y);
+            if(appearance(x, y) > 0) {
+                p.g = appearance(x, y) * 255;
+            } else if(appearance(x, y) < 0) {
+                p.r = -appearance(x, y) * 255;
+            }
+
+
+        }
+    }
+
+
+
+
+
 }
 
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -229,13 +260,21 @@ bool delayControl::updateModule()
     }
 
     //output the debug image if connected
-//    if(debugPort.getOutputCount()) {
-//        ImageOf<PixelBgr> &image = debugPort.prepare();
-//        vQueue qcopy = roiq.q;
-//        drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, roiq.q);
+    if(debugPort.getOutputCount()) {
+        ImageOf<PixelBgr> &image = debugPort.prepare();
+
+        m.lock();
+        image.resize(res.width, res.height);
+        image.zero();
+        drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+        drawEvents(image, qROI.q);
+        m.unlock();
+
+        debugPort.write();
 
 
-//    }
+
+    }
 
     return Thread::isRunning();
 }
@@ -445,6 +484,88 @@ void delayControl::run()
 
 
         }
+
+//        static double prev_update_time = Tgetwindow;
+//        filterPeriod = Time::now() - prev_update_time;
+//        prev_update_time += filterPeriod;
+
+//        //output a debug image
+//        if(debugPort.getOutputCount()) {
+
+//            //static double prev_likelihood = vpf.maxlikelihood;
+//            static int NOFPANELS = 3;
+
+//            static yarp::sig::ImageOf< yarp::sig::PixelBgr> *image_ptr = 0;
+//            static int panelnumber = NOFPANELS;
+
+//            static double pimagetime = yarp::os::Time::now();
+
+//            //if we are in waiting state, check trigger condition
+//            bool trigger_capture = false;
+//            if(panelnumber >= NOFPANELS) {
+//                //trigger_capture = prev_likelihood > detectionThreshold &&
+//                 //       vpf.maxlikelihood <= detectionThreshold;
+//                trigger_capture = yarp::os::Time::now() - pimagetime > 0.1;
+//            }
+//            //prev_likelihood = vpf.maxlikelihood;
+
+//            //if we are in waiting state and
+//            if(trigger_capture) {
+//                //trigger the capture of the panels only if we aren't already
+//                pimagetime = yarp::os::Time::now();
+//                yarp::sig::ImageOf< yarp::sig::PixelBgr> &image_ref =
+//                        debugPort.prepare();
+//                image_ptr = &image_ref;
+//                image_ptr->resize(res.width * NOFPANELS, res.height);
+//                image_ptr->zero();
+//                panelnumber = 0;
+//            }
+
+//            if(panelnumber < NOFPANELS) {
+
+//                yarp::sig::ImageOf<yarp::sig::PixelBgr> &image = *image_ptr;
+//                int panoff = panelnumber * res.width;
+
+//                int px1 = avgx - roisize; if(px1 < 0) px1 = 0;
+//                int px2 = avgx + roisize; if(px2 >= res.width) px2 = res.width-1;
+//                int py1 = avgy - roisize; if(py1 < 0) py1 = 0;
+//                int py2 = avgy + roisize; if(py2 >= res.height) py2 = res.height-1;
+
+//                px1 += panoff; px2 += panoff;
+//                for(int x = px1; x <= px2; x+=2) {
+//                    image(x, py1) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
+//                    image(x, py2) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
+//                }
+//                for(int y = py1; y <= py2; y+=2) {
+//                    image(px1, y) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
+//                    image(px2, y) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
+//                }
+
+//                std::vector<templatedParticle> indexedlist = vpf.getps();
+
+//                for(unsigned int i = 0; i < indexedlist.size(); i++) {
+
+//                    int py = indexedlist[i].state[templatedParticle::y];
+//                    int px = indexedlist[i].state[templatedParticle::x];
+
+//                    if(py < 0 || py >= res.height || px < 0 || px >= res.width)
+//                        continue;
+//                    int pscale = 255 * indexedlist[i].getl() / maxRawLikelihood;
+//                    image(px+panoff, py) =
+//                            yarp::sig::PixelBgr(pscale, 255, pscale);
+
+//                }
+//                drawEvents(image, qROI.q, panoff);
+
+//                panelnumber++;
+//            }
+
+//            if(panelnumber == NOFPANELS) {
+//                panelnumber++;
+//                debugPort.write();
+//            }
+
+//        }
 
     }
 

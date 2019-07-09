@@ -22,7 +22,6 @@
 using ev::event;
 using ev::AddressEvent;
 
-
 double generateGaussianNoise(double mu, double sigma)
 {
     const double epsilon = std::numeric_limits<double>::min();
@@ -92,11 +91,11 @@ double vParticlefilter::initialise(int width, int height, int nparticles,
     templatedParticle p;
     p.weight = 1.0 / (double)nparticles;
 
-    vector<double> mins = {0.0, 0.0, 0.2};
-    vector<double> maxs = {(double)res.width, (double)res.height, 0.7};
+    vector<double> mins = {0.0, 0.0, 1.0/5.0};
+    vector<double> maxs = {(double)res.width, (double)res.height, 1.0 / 1.0};
     p.setConstraints(mins, maxs);
 
-    double max_likelihood = initialiseAsCircle(15);
+    double max_likelihood = initialiseAsCircle(30);
     p.setAppearance(&appearance, max_likelihood);
 
     for(int i = 0; i < this->nparticles; i++) {
