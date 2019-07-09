@@ -99,15 +99,15 @@ public:
 
     void concludeLikelihood()
     {
-        likelihood *= state[s];
+        likelihood *= (state[s] * state[s]);
         if(likelihood < min_likelihood) {
             //yInfo() << "scaling up likelihood from minimum";
             likelihood = min_likelihood;
         }
-        //if(likelihood > max_likelihood) {
+        if(likelihood > max_likelihood) {
         //    yInfo() << "scaling down likelihood from maximum";
-         //   likelihood = max_likelihood;
-        //}
+            likelihood = max_likelihood;
+        }
         weight *= likelihood;
     }
 

@@ -429,7 +429,6 @@ void delayControl::run()
         Tpredict = yarp::os::Time::now() - Tpredict;
 
         int is_tracking = 1;
-        yWarning() << vpf.maxlikelihood << " " << detectionThreshold;
         if(vpf.maxlikelihood < detectionThreshold)
             is_tracking = 0;
 

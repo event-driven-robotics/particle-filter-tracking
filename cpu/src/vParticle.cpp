@@ -222,12 +222,6 @@ void vParticlefilter::extractTargetPosition(double &x, double &y, double &r)
         r += p.getAbsoluteSize() * p.weight;
     }
 
-//    for(int i = 0; i < nparticles; i++) {
-//        x += ps[i].state[templatedParticle::x] * ps[i].weight;
-//        y += ps[i].state[templatedParticle::y] * ps[i].weight;
-//        //r += ps[i].state[templatedParticle::s] * ps[i].weight;
-//        r += ps[i].getAbsoluteSize() * ps[i].weight;
-//    }
 }
 
 void vParticlefilter::extractTargetWindow(double &tw)
@@ -235,12 +229,6 @@ void vParticlefilter::extractTargetWindow(double &tw)
     tw = 0;
     for(auto &p : ps)
         tw += p.getn() * p.weight;
-
-//    for(int i = 0; i < nparticles; i++) {
-//        double w = ps[i].weight;
-//        tw += ps[i].getn() * w;
-//
-//    }
 
 }
 
@@ -299,7 +287,7 @@ double vParticlefilter::initialiseAsCircle(int r)
             else if(d < 1.0 && d > -1.0)
             {
                 appearance(y, x) = 1.0;
-                max_likelihood++;
+                max_likelihood += appearance(y, x);
             }
             else
             {
@@ -309,12 +297,12 @@ double vParticlefilter::initialiseAsCircle(int r)
         }
     }
 
-    for(size_t y = 0; y < appearance.height(); y++) {
-        for(size_t x = 0; x < appearance.width(); x++) {
-            std::cout << appearance(y, x) << " ";
-        }
-        std::cout << std::endl;
-    }
+//    for(size_t y = 0; y < appearance.height(); y++) {
+//        for(size_t x = 0; x < appearance.width(); x++) {
+//            std::cout << appearance(y, x) << " ";
+//        }
+//        std::cout << std::endl;
+//    }
 
     return max_likelihood;
 
