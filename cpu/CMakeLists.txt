@@ -1,33 +1,45 @@
 cmake_minimum_required(VERSION 3.5)
 
 project(vParticleFilterTracker)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-option(USE_QTCREATOR "Add apps/drivers to QtCreator IDE" OFF)
+if(NOT CMAKE_CONFIGURATION_TYPES)
+    if(NOT CMAKE_BUILD_TYPE)
+        message(STATUS "Setting build type to 'Release' as none was specified.")
+        set_property(CACHE CMAKE_BUILD_TYPE PROPERTY VALUE "Release")
+    endif()
+endif()
 
-find_package(YARP 3.0 REQUIRED COMPONENTS OS)
-find_package(ICUBcontrib REQUIRED)
-find_package(eventdriven REQUIRED)
+include(GNUInstallDirs)
+find_package(YCM REQUIRED)
+include(AddInstallRPATHSupport)
+add_install_rpath_support(BIN_DIRS "${CMAKE_INSTALL_FULL_BINDIR}"
+                          LIB_DIRS "${CMAKE_INSTALL_FULL_LIBDIR}"
+                          INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}"
+                          USE_LINK_PATH)
 
-list(APPEND CMAKE_MODULE_PATH ${ICUBCONTRIB_MODULE_PATH})
-include(ICUBcontribHelpers)
-include(ICUBcontribOptions)
-icubcontrib_set_default_prefix()
+
+
+find_package(YARP COMPONENTS OS sig REQUIRED)
+find_package(event-driven REQUIRED)
 
 file(GLOB source src/vControlLoopDelay.cpp src/vParticle.cpp)
 file(GLOB header include/vControlLoopDelay.h include/vParticle.h)
 
-include_directories(${PROJECT_SOURCE_DIR}/include
-                    ${eventdriven_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
-add_executable(${PROJECT_NAME} ${source} ${header})
+add_executable(${PROJECT_NAME} src/vControlLoopDelay.cpp src/vParticle.cpp
+    include/vControlLoopDelay.h include/vParticle.h)
 
-target_link_libraries(${PROJECT_NAME} ${YARP_LIBRARIES} eventdriven)
+target_link_libraries(${PROJECT_NAME} PRIVATE YARP::YARP_OS
+                                              YARP::YARP_init
+                                              ev::event-driven)
 
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-yarp_install(FILES ${PROJECT_NAME}.ini DESTINATION ${ICUBCONTRIB_CONTEXTS_INSTALL_DIR}/eventdriven)
+yarp_install(FILES ${PROJECT_NAME}.ini
+             DESTINATION ${EVENT-DRIVEN_CONTEXTS_INSTALL_DIR}/${CONTEXT_DIR})
 
+option(USE_QTCREATOR "Add apps/drivers to QtCreator IDE" OFF)
 if(USE_QTCREATOR)
     add_custom_target(${PROJECT_NAME}_docs SOURCES ${PROJECT_NAME}.ini)
 endif(USE_QTCREATOR)

@@ -21,7 +21,7 @@
 
 #include <yarp/os/all.h>
 #include <yarp/sig/Vector.h>
-#include <iCub/eventdriven/all.h>
+#include <event-driven//all.h>
 #include "vParticle.h"
 
 using namespace ev;

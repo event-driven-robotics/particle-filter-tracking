@@ -19,7 +19,7 @@
 #ifndef __VPARTICLE__
 #define __VPARTICLE__
 
-#include <iCub/eventdriven/all.h>
+#include <event-driven/all.h>
 #include <yarp/sig/all.h>
 
 using namespace ev;
