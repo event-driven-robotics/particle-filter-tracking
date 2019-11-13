@@ -32,8 +32,8 @@ int main(int argc, char * argv[])
 
     /* prepare and configure the resource finder */
     yarp::os::ResourceFinder rf;
-    rf.setVerbose( false );
-    rf.setDefaultContext( "eventdriven" );
+    rf.setVerbose( true );
+    rf.setDefaultContext( "event-driven" );
     rf.setDefaultConfigFile( "vParticleFilterTracker.ini" );
     rf.configure( argc, argv );
 

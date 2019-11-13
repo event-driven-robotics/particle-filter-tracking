@@ -19,27 +19,24 @@ add_install_rpath_support(BIN_DIRS "${CMAKE_INSTALL_FULL_BINDIR}"
 
 
 
-find_package(YARP COMPONENTS OS sig REQUIRED)
+find_package(YARP COMPONENTS os sig REQUIRED)
 find_package(event-driven REQUIRED)
-
-file(GLOB source src/vControlLoopDelay.cpp src/vParticle.cpp)
-file(GLOB header include/vControlLoopDelay.h include/vParticle.h)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 add_executable(${PROJECT_NAME} src/vControlLoopDelay.cpp src/vParticle.cpp
     include/vControlLoopDelay.h include/vParticle.h)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE YARP::YARP_OS
+target_link_libraries(${PROJECT_NAME} PRIVATE YARP::YARP_os
                                               YARP::YARP_init
                                               ev::event-driven)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 yarp_install(FILES ${PROJECT_NAME}.ini
-             DESTINATION ${EVENT-DRIVEN_CONTEXTS_INSTALL_DIR}/${CONTEXT_DIR})
+             DESTINATION ${EVENT-DRIVEN_CONTEXTS_INSTALL_DIR}/event-driven)
 
-option(USE_QTCREATOR "Add apps/drivers to QtCreator IDE" OFF)
-if(USE_QTCREATOR)
+option(ADD_DOCS_TO_IDE "Explicitly add apps/drivers to project IDE" OFF)
+if(ADD_DOCS_TO_IDE)
     add_custom_target(${PROJECT_NAME}_docs SOURCES ${PROJECT_NAME}.ini)
-endif(USE_QTCREATOR)
+endif(ADD_DOCS_TO_IDE)
