@@ -28,6 +28,9 @@ using namespace ev;
 using namespace yarp::os;
 using namespace yarp::sig;
 
+
+
+
 /*////////////////////////////////////////////////////////////////////////////*/
 // ROIQ
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -63,13 +66,14 @@ private:
     BufferedPort<Vector> scopePort;
     roiq qROI;
     vParticlefilter vpf;
+    Mutex m;
 
     //variables
     resolution res;
     double avgx, avgy, avgr;
     int maxRawLikelihood;
     double gain;
-    int detectionThreshold;
+    double detectionThreshold;
     double resetTimeout;
     double motionVariance;
     int batch_size;

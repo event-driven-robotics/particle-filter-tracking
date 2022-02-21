@@ -17,6 +17,9 @@
  */
 
 #include "vControlLoopDelay.h"
+#include <cmath>
+
+#include <algorithm>
 
 int main(int argc, char * argv[])
 {
@@ -38,6 +41,103 @@ int main(int argc, char * argv[])
     rf.configure( argc, argv );
 
     return instance.runModule(rf);
+}
+
+void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q,
+                int offsetx = 0) {
+
+    if(q.empty()) return;
+
+    //draw oldest first
+    for(int i = (int)q.size()-1; i >= 0; i--) {
+        double p = (double)i / (double)q.size();
+        //image(q[i].x + offsetx, q[i].y).b =  255 * (1-p);
+        image(q[i].x + offsetx, q[i].y).b =  255;
+    }
+}
+
+void drawcircle(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, int cx, int cy,
+                int cr, int id)
+{
+
+    for(int y = -cr; y <= cr; y++) {
+        for(int x = -cr; x <= cr; x++) {
+            if(fabs(sqrt(pow(x, 2.0) + pow(y, 2.0)) - (double)cr) > 0.8)
+                continue;
+            int px = cx + x; int py = cy + y;
+            if(py<0 || py>(int)image.height()-1 || px<0 || px>(int)image.width()-1)
+                continue;
+            switch(id) {
+            case(0): //green
+                image(px, py) = yarp::sig::PixelBgr(0, 255, 0);
+                break;
+            case(1): //blue
+                image(px, py) = yarp::sig::PixelBgr(0, 0, 255);
+                break;
+            case(2): //red
+                image(px, py) = yarp::sig::PixelBgr(255, 0, 0);
+                break;
+            default:
+                image(px, py) = yarp::sig::PixelBgr(255, 255, 0);
+                break;
+
+            }
+
+        }
+    }
+
+}
+
+void drawDistribution(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, std::vector<templatedParticle> &indexedlist)
+{
+
+    double sum = 0;
+    std::vector<double> weights;
+    for(unsigned int i = 0; i < indexedlist.size(); i++) {
+        weights.push_back(indexedlist[i].weight);
+        sum += weights.back();
+    }
+
+    std::sort(weights.begin(), weights.end());
+
+
+    image.resize(indexedlist.size(), 100);
+    image.zero();
+    for(unsigned int i = 0; i < weights.size(); i++) {
+        image(weights.size() - 1 -  i, 99 - weights[i]*100) = yarp::sig::PixelBgr(255, 255, 255);
+    }
+}
+
+void drawTemplate(ImageOf<PixelBgr> &image, ImageOf<PixelFloat> &appearance,
+                  double t_x, double t_y, double t_r)
+{
+    int mid_x = appearance.width() / 2;
+    int mid_y = appearance.height() / 2;
+    double t_s = t_r / mid_x;
+
+    for(auto x = 0; x < appearance.width(); x++) {
+        for(auto y = 0; y < appearance.height(); y++) {
+
+            int i_x = t_x + ((x - mid_x) * t_s);
+            i_x = std::max(std::min(i_x, (int)(image.width() - 1)), 0);
+            int i_y = t_y + ((y - mid_y) * t_s);
+            i_y = std::max(std::min(i_y, (int)(image.height() - 1)), 0);
+
+            PixelBgr &p = image(i_x, i_y);
+            if(appearance(x, y) > 0) {
+                p.g = appearance(x, y) * 255;
+            } else if(appearance(x, y) < 0) {
+                p.r = -appearance(x, y) * 255;
+            }
+
+
+        }
+    }
+
+
+
+
+
 }
 
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -96,29 +196,22 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
     px = py = pr = 0;
     res.height = rf.check("height", Value(240)).asInt();
     res.width = rf.check("width", Value(304)).asInt();
-    gain = rf.check("gain", Value(0.0005)).asDouble();
+    gain = rf.check("gain", Value(0.01)).asDouble();
     batch_size = rf.check("batch", Value(0)).asInt();
     bool adaptivesampling = rf.check("adaptive") &&
             rf.check("adaptive", yarp::os::Value(true)).asBool();
-    motionVariance = rf.check("variance", yarp::os::Value(0.7)).asDouble();
+    motionVariance = rf.check("variance", yarp::os::Value(2.0)).asDouble();
     output_sample_delta = rf.check("output_sample", Value(0)).asDouble();
-    resetTimeout = rf.check("reset", yarp::os::Value(1.0)).asDouble();
     bool start = rf.check("start") &&
             rf.check("start", yarp::os::Value(true)).asBool();
 
-    //maxRawLikelihood must be set before TrueThreshold
-    maxRawLikelihood  = rf.check("bins", Value(64)).asInt();
-    setTrueThreshold(rf.check("truethresh", yarp::os::Value(0.35)).asDouble());
-
-    vpf.initialise(res.width, res.height,
-                   rf.check("particles", yarp::os::Value(32)).asInt(),
-                   maxRawLikelihood,
+    maxRawLikelihood = vpf.initialise(res.width, res.height,
+                   rf.check("particles", yarp::os::Value(20)).asInt(),
                    adaptivesampling,
-                   rf.check("threads", Value(1)).asInt(),
-                   rf.check("obsthresh", yarp::os::Value(0.2)).asDouble(),
-                   rf.check("obsinlier", yarp::os::Value(1.5)).asDouble(),
-                   rf.check("randoms", yarp::os::Value(0.0)).asDouble(),
-                   rf.check("negbias", yarp::os::Value(10.0)).asDouble());
+                   rf.check("threads", Value(1)).asInt());
+
+    //maxRawLikelihood must be set before TrueThreshold
+    setTrueThreshold(rf.check("truethresh", yarp::os::Value(0.35)).asDouble());
 
     yarp::os::Bottle * seed = rf.find("seed").asList();
     if(seed && seed->size() == 3) {
@@ -160,9 +253,27 @@ bool delayControl::interruptModule()
 
 bool delayControl::updateModule()
 {
+    //output the scope if connected
     if(scopePort.getOutputCount()) {
         scopePort.prepare() = getTrackingStats();
         scopePort.write();
+    }
+
+    //output the debug image if connected
+    if(debugPort.getOutputCount()) {
+        ImageOf<PixelBgr> &image = debugPort.prepare();
+
+        m.lock();
+        image.resize(res.width, res.height);
+        image.zero();
+        drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+        drawEvents(image, qROI.q);
+        m.unlock();
+
+        debugPort.write();
+
+
+
     }
 
     return Thread::isRunning();
@@ -233,19 +344,20 @@ void delayControl::run()
     targetproc = 0;
     unsigned int i = 0;
     yarp::os::Stamp ystamp;
-    //double stagnantstart = 0;
-    int channel;
+    double nw = 0;
+
     if(batch_size)
         qROI.setSize(batch_size);
     else
         qROI.setSize(50);
 
-    //START HERE!!
+    //read some data to extract the channel
     const vector<AE> *q = input_port.read(ystamp);
     if(!q || Thread::isStopping()) return;
-    vpf.extractTargetPosition(avgx, avgy, avgr);
+    int channel = q->front().getChannel();
 
-    channel = q->front().getChannel();
+    //initialise the position
+    vpf.extractTargetPosition(avgx, avgy, avgr);
 
     while(true) {
 
@@ -256,7 +368,22 @@ void delayControl::run()
         if(unprocdqs > 1 && delay > gain)
             targetproc *= (delay / gain);
 
-        //update the ROI with enough events
+        //update the ROI
+        m.lock();
+
+        //from the previous update resize if needed
+        double roisize = avgr + 10;
+        qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
+
+        //set our new window #events
+        if(!batch_size) {
+            if(qROI.q.size() - nw > 30)
+                qROI.setSize(std::max(nw, 50.0));
+            if(qROI.q.size() > 3000)
+                qROI.setSize(3000);
+        }
+
+        //add new events to the ROI
         Tgetwindow = yarp::os::Time::now();
         unsigned int addEvents = 0;
         unsigned int testedEvents = 0;
@@ -264,87 +391,46 @@ void delayControl::run()
 
             //if we ran out of events get a new queue
             if(i >= q->size()) {
-                //if(input_port.queryunprocessed() < 3) break;
                 i = 0;
                 q = input_port.read(ystamp);
-                if(!q || Thread::isStopping()) return;
+                if(!q || Thread::isStopping())
+                    return;
             }
 
-            //auto v = is_event<AE>((*q)[i]);
             addEvents += qROI.add((*q)[i]);
-            //if(breakOnAdded) testedEvents = addEvents;
-            //else testedEvents++;
             testedEvents++;
             i++;
         }
         Tgetwindow = yarp::os::Time::now() - Tgetwindow;
 
-        //get the current time
-        int currentstamp = 0;
-        if(i >= q->size())
-            currentstamp = (*q)[i-1].stamp;
-        else
-            currentstamp = (*q)[i].stamp;
-
+        //if using a batch fix the size to the batch size ALWAYS
         if(batch_size)
             qROI.setSize(batch_size);
 
-        //do our update!!
-        //yarp::os::Time::delay(0.005);
+        m.unlock();
+
+        //update the particle weights
         Tlikelihood = yarp::os::Time::now();
         vpf.performObservation(qROI.q);
         Tlikelihood = yarp::os::Time::now() - Tlikelihood;
 
-        //set our new position
+        //extract the state
+        vpf.extractTargetWindow(nw);
         dx = avgx, dy = avgy, dr = avgr;
         vpf.extractTargetPosition(avgx, avgy, avgr);
         dx = avgx - dx; dy = avgy - dy; dr = avgr - dr;
-        double roisize = avgr + 10;
-        qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
-
-        //set our new window #events
-        if(!batch_size) {
-            double nw; vpf.extractTargetWindow(nw);
-            if(qROI.q.size() - nw > 30)
-                qROI.setSize(std::max(nw, 50.0));
-            if(qROI.q.size() > 3000)
-                qROI.setSize(3000);
-        }
-
-        //calculate the temporal window of the q
-        double tw = qROI.q.front().stamp - qROI.q.back().stamp;
-        if(tw < 0) tw += vtsHelper::max_stamp;
 
         Tresample = yarp::os::Time::now();
         vpf.performResample();
         Tresample = yarp::os::Time::now() - Tresample;
 
         Tpredict = yarp::os::Time::now();
-        //vpf.performPrediction(std::max(addEvents / (5.0 * avgr), 0.7));
         vpf.performPrediction(motionVariance);
         Tpredict = yarp::os::Time::now() - Tpredict;
 
         int is_tracking = 1;
         if(vpf.maxlikelihood < detectionThreshold)
             is_tracking = 0;
-
-//        //check for stagnancy
-//        int is_tracking = 1;
-//        if(vpf.maxlikelihood < detectionThreshold) {
-
-//            if(!stagnantstart) {
-//                stagnantstart = yarp::os::Time::now();
-//            } else {
-//                if(yarp::os::Time::now() - stagnantstart > resetTimeout) {
-//                    //vpf.resetToSeed();
-//                    stagnantstart = 0;
-//                    is_tracking = 0;
-//                }
-//            }
-
-//        } else {
-//            stagnantstart = 0;
-//        }
 
         double delta_x = avgx - px;
         double delta_y = avgy - py;
@@ -353,17 +439,21 @@ void delayControl::run()
             px = avgx;
             py = avgy;
             pr = avgr;
+
+            double tw = qROI.q.front().stamp - qROI.q.back().stamp;
+            if(tw < 0) tw += vtsHelper::max_stamp;
+
             //output our event
             if(event_output_port.getOutputCount()) {
                 auto ceg = make_event<GaussianAE>();
-                ceg->stamp = currentstamp;
+                ceg->stamp = qROI.q.front().stamp;
                 ceg->setChannel(channel);
                 ceg->x = avgx;
                 ceg->y = avgy;
                 ceg->sigx = avgr;
                 ceg->sigy = tw;
                 ceg->sigxy = 1.0;
-                if(vpf.maxlikelihood > detectionThreshold)
+                if(is_tracking)
                     ceg->polarity = 1.0;
                 else
                     ceg->polarity = 0.0;
@@ -378,7 +468,7 @@ void delayControl::run()
                 next_sample.clear();
                 next_sample.addVocab(createVocab('T', '_', 'S', 'T'));
                 next_sample.addInt(is_tracking);
-                next_sample.addDouble(currentstamp);
+                next_sample.addDouble(qROI.q.front().stamp);
                 next_sample.addDouble(Time::now());
                 next_sample.addDouble(avgx);
                 next_sample.addDouble(avgy);
@@ -391,92 +481,6 @@ void delayControl::run()
                 raw_output_port.write();
             }
 
-
-        }
-
-
-
-
-
-        static double prev_update_time = Tgetwindow;
-        filterPeriod = Time::now() - prev_update_time;
-        prev_update_time += filterPeriod;
-
-        //output a debug image
-        if(debugPort.getOutputCount()) {
-
-            //static double prev_likelihood = vpf.maxlikelihood;
-            static int NOFPANELS = 3;
-
-            static yarp::sig::ImageOf< yarp::sig::PixelBgr> *image_ptr = 0;
-            static int panelnumber = NOFPANELS;
-
-            static double pimagetime = yarp::os::Time::now();
-
-            //if we are in waiting state, check trigger condition
-            bool trigger_capture = false;
-            if(panelnumber >= NOFPANELS) {
-                //trigger_capture = prev_likelihood > detectionThreshold &&
-                 //       vpf.maxlikelihood <= detectionThreshold;
-                trigger_capture = yarp::os::Time::now() - pimagetime > 0.1;
-            }
-            //prev_likelihood = vpf.maxlikelihood;
-
-            //if we are in waiting state and
-            if(trigger_capture) {
-                //trigger the capture of the panels only if we aren't already
-                pimagetime = yarp::os::Time::now();
-                yarp::sig::ImageOf< yarp::sig::PixelBgr> &image_ref =
-                        debugPort.prepare();
-                image_ptr = &image_ref;
-                image_ptr->resize(res.width * NOFPANELS, res.height);
-                image_ptr->zero();
-                panelnumber = 0;
-            }
-
-            if(panelnumber < NOFPANELS) {
-
-                yarp::sig::ImageOf<yarp::sig::PixelBgr> &image = *image_ptr;
-                int panoff = panelnumber * res.width;
-
-                int px1 = avgx - roisize; if(px1 < 0) px1 = 0;
-                int px2 = avgx + roisize; if(px2 >= res.width) px2 = res.width-1;
-                int py1 = avgy - roisize; if(py1 < 0) py1 = 0;
-                int py2 = avgy + roisize; if(py2 >= res.height) py2 = res.height-1;
-
-                px1 += panoff; px2 += panoff;
-                for(int x = px1; x <= px2; x+=2) {
-                    image(x, py1) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
-                    image(x, py2) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
-                }
-                for(int y = py1; y <= py2; y+=2) {
-                    image(px1, y) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
-                    image(px2, y) = yarp::sig::PixelBgr(255, 255, 120 * panelnumber);
-                }
-
-                std::vector<vParticle> indexedlist = vpf.getps();
-
-                for(unsigned int i = 0; i < indexedlist.size(); i++) {
-
-                    int py = indexedlist[i].gety();
-                    int px = indexedlist[i].getx();
-
-                    if(py < 0 || py >= res.height || px < 0 || px >= res.width)
-                        continue;
-                    int pscale = 255 * indexedlist[i].getl() / maxRawLikelihood;
-                    image(px+panoff, py) =
-                            yarp::sig::PixelBgr(pscale, 255, pscale);
-
-                }
-                drawEvents(image, qROI.q, panoff);
-
-                panelnumber++;
-            }
-
-            if(panelnumber == NOFPANELS) {
-                panelnumber++;
-                debugPort.write();
-            }
 
         }
 

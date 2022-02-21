@@ -17,9 +17,7 @@
  */
 
 #include "vParticle.h"
-#include <cmath>
 #include <limits>
-#include <algorithm>
 
 using ev::event;
 using ev::AddressEvent;
@@ -54,244 +52,22 @@ double generateUniformNoise(double mu, double sigma)
     return mu + rand() * (2.0 * sigma / RAND_MAX) - sigma;
 }
 
-void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q,
-                int offsetx) {
 
-    if(q.empty()) return;
-
-    //draw oldest first
-    for(int i = (int)q.size()-1; i >= 0; i--) {
-        double p = (double)i / (double)q.size();
-        //auto v = is_event<AE>(q[i]);
-        image(q[i].x + offsetx, q[i].y) =
-                yarp::sig::PixelBgr(255 * (1-p), 0, 255);
-    }
-}
-
-void drawcircle(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, int cx, int cy,
-                int cr, int id)
-{
-
-    for(int y = -cr; y <= cr; y++) {
-        for(int x = -cr; x <= cr; x++) {
-            if(fabs(sqrt(pow(x, 2.0) + pow(y, 2.0)) - (double)cr) > 0.8)
-                continue;
-            int px = cx + x; int py = cy + y;
-            if(py<0 || py>(int)image.height()-1 || px<0 || px>(int)image.width()-1)
-                continue;
-            switch(id) {
-            case(0): //green
-                image(px, py) = yarp::sig::PixelBgr(0, 255, 0);
-                break;
-            case(1): //blue
-                image(px, py) = yarp::sig::PixelBgr(0, 0, 255);
-                break;
-            case(2): //red
-                image(px, py) = yarp::sig::PixelBgr(255, 0, 0);
-                break;
-            default:
-                image(px, py) = yarp::sig::PixelBgr(255, 255, 0);
-                break;
-
-            }
-
-        }
-    }
-
-}
-
-void drawDistribution(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, std::vector<vParticle> &indexedlist)
-{
-
-    double sum = 0;
-    std::vector<double> weights;
-    for(unsigned int i = 0; i < indexedlist.size(); i++) {
-        weights.push_back(indexedlist[i].getw());
-        sum += weights.back();
-    }
-
-    std::sort(weights.begin(), weights.end());
-
-
-    image.resize(indexedlist.size(), 100);
-    image.zero();
-    for(unsigned int i = 0; i < weights.size(); i++) {
-        image(weights.size() - 1 -  i, 99 - weights[i]*100) = yarp::sig::PixelBgr(255, 255, 255);
-    }
-}
-
-double vParticle::approxatan2(double y, double x) {
-
-    double ax = std::abs(x); double ay = std::abs(y);
-    double a = std::min (ax, ay) / std::max (ax, ay);
-    //double s = pow(a, 2.0);
-    //double r = ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a;
-
-    double r = a * (M_PI_4 - (a - 1) * 0.273318560862312);
-
-    if(ay > ax)
-        r = 1.57079637 - r;
-
-    if(x < 0)
-        r = 3.14159274 - r;
-    if(y < 0)
-        r = -r;
-
-    return r;
-
-}
-
-/*////////////////////////////////////////////////////////////////////////////*/
-//VPARTICLETRACKER
-/*////////////////////////////////////////////////////////////////////////////*/
-
-vParticle::vParticle()
-{
-    weight = 1.0;
-    likelihood = 1.0;
-    predlike = 1.0;
-    minlikelihood = 20.0;
-    inlierParameter = 1.5;
-    variance = 0.5;
-    nw = 0;
-    inlierCount = 0;
-    outlierCount = 0;
-    pcb = 0;
-    angbuckets = 128;
-    negativeBias = 2.0;
-    angdist.resize(angbuckets);
-    negdist.resize(angbuckets);
-    constrain = false;
-}
-
-void vParticle::initialiseParameters(int id, double minLikelihood,
-                                     double negativeBias, double inlierParam,
-                                     double variance, int angbuckets)
-{
-    this->id = id;
-    this->negativeBias = negativeBias;
-    this->inlierParameter = inlierParam;
-    this->variance = variance;
-    this->angbuckets = angbuckets;
-    angdist.resize(angbuckets);
-    negdist.resize(angbuckets);
-
-    updateMinLikelihood(minLikelihood);
-}
-
-void vParticle::updateMinLikelihood(double value)
-{
-    minlikelihood = value * angbuckets;
-}
-
-vParticle& vParticle::operator=(const vParticle &rhs)
-{
-    this->x = rhs.x;
-    this->y = rhs.y;
-    this->r = rhs.r;
-    this->weight = rhs.weight;
-    return *this;
-}
-
-void vParticle::initialiseState(double x, double y, double r)
-{
-    this->x = x;
-    this->y = y;
-    this->r = r;
-}
-
-void vParticle::randomise(int x, int y, int r)
-{
-    initialiseState(rand()%x, rand()%y, rand()%r);
-}
-
-void vParticle::resetWeight(double value)
-{
-    this->weight = value;
-}
-
-void vParticle::resetRadius(double value)
-{
-    this->r = value;
-    //resetArea();
-}
-
-void vParticle::setNegativeBias(double value)
-{
-    negativeBias = value;
-}
-
-void vParticle::setInlierParameter(double value)
-{
-    inlierParameter = value;
-}
-
-void vParticle::resetArea()
-{
-    negativeScaler = negativeBias * angbuckets / (M_PI * r * r);
-}
-
-void vParticle::predict(double sigma)
-{
-    //tw += 12500;
-//    x = generateGaussianNoise(x, sigma);
-//    y = generateGaussianNoise(y, sigma);
-//    r = generateGaussianNoise(r, sigma * 0.2);
-
-    x = generateUniformNoise(x, sigma);
-    y = generateUniformNoise(y, sigma);
-    r = generateUniformNoise(r, sigma * 0.2);
-
-    if(constrain) checkConstraints();
-}
-
-void vParticle::setContraints(int minx, int maxx, int miny, int maxy, int minr, int maxr)
-{
-    this->minx = minx;
-    this->maxx = maxx;
-    this->miny = miny;
-    this->maxy = maxy;
-    this->minr = minr;
-    this->maxr = maxr;
-    constrain = true;
-}
-void vParticle::checkConstraints()
-{
-    if(x < minx) x = minx;
-    if(x > maxx) x = maxx;
-    if(y < miny) y = miny;
-    if(y > maxy) y = maxy;
-    if(r < minr) r = minr;
-    if(r > maxr) r = maxr;
-}
-
-
-
-void vParticle::updateWeightSync(double normval)
-{
-    weight = weight / normval;
-}
 
 /*////////////////////////////////////////////////////////////////////////////*/
 //VPARTICLEFILTER
 /*////////////////////////////////////////////////////////////////////////////*/
 
 
-void vParticlefilter::initialise(int width, int height, int nparticles,
-                                 int bins, bool adaptive, int nthreads,
-                                 double minlikelihood, double inlierThresh,
-                                 double randoms, double negativeBias)
+double vParticlefilter::initialise(int width, int height, int nparticles,
+                                 bool adaptive, int nthreads)
 {
     res.width = width;
     res.height = height;
     this->nparticles = nparticles;
-    this->bins = bins;
     this->adaptive = adaptive;
     this->nthreads = nthreads;
-    this->nRandoms = randoms + 1.0;
-    rbound_min = res.width/18;
-    rbound_max = res.width/5;
-    pcb.configure(res.height, res.width, rbound_max, bins);
+
     setSeed(res.width/2.0, res.height/2.0);
 
     ps.clear();
@@ -312,17 +88,38 @@ void vParticlefilter::initialise(int width, int height, int nparticles,
     }
 
 
-    vParticle p;
-    p.attachPCB(&pcb);
-    p.resetWeight(1.0/nparticles);
-    p.setContraints(0, res.width, 0, res.height, rbound_min, rbound_max);
+    templatedParticle p;
+    p.weight = 1.0 / (double)nparticles;
+
+    vector<double> mins = {0.0, 0.0, 1.0/5.0};
+    vector<double> maxs = {(double)res.width, (double)res.height, 1.0 / 1.0};
+    p.setConstraints(mins, maxs);
+
+    double max_likelihood = initialiseAsCircle(30);
+    p.setAppearance(&appearance, max_likelihood);
+
     for(int i = 0; i < this->nparticles; i++) {
-        p.initialiseParameters(i, minlikelihood, negativeBias, inlierThresh, 0, bins);
+        p.id = i;
         ps.push_back(p);
         ps_snap.push_back(p);
     }
 
     resetToSeed();
+
+    return max_likelihood;
+}
+
+void vParticlefilter::setAppearance(const ImageOf<PixelFloat> &new_appearance,
+                                    double max_likelihood)
+{
+    this->appearance.copy(new_appearance);
+    yInfo() << &new_appearance << " " << &(this->appearance);
+    for(auto &p : ps) {
+        p.setAppearance(&(this->appearance), max_likelihood);
+        yInfo() << p.appearance;
+    }
+
+
 }
 
 void vParticlefilter::setSeed(int x, int y, int r)
@@ -334,33 +131,34 @@ void vParticlefilter::resetToSeed()
 {
     if(seedr) {
         for(int i = 0; i < nparticles; i++) {
-            ps[i].initialiseState(seedx, seedy, seedr);
+            ps[i].state = {(double)seedx, (double)seedy, (double)seedr};
         }
     } else {
         for(int i = 0; i < nparticles; i++) {
-            ps[i].initialiseState(seedx, seedy,
-                                  rbound_min + (rbound_max - rbound_min) *
-                                  ((double)rand()/RAND_MAX));
+            ps[i].state = {(double)seedx, (double)seedy, 1.0};
         }
     }
 }
 
 void vParticlefilter::setMinLikelihood(double value)
 {
-    for(int i = 0; i < nparticles; i++)
-        ps[i].updateMinLikelihood(value);
+    yWarning() << "Deprecated";
+    //for(int i = 0; i < nparticles; i++)
+        //ps[i].updateMinLikelihood(value);
 }
 
 void vParticlefilter::setInlierParameter(double value)
 {
-    for(int i = 0; i < nparticles; i++)
-        ps[i].setInlierParameter(value);
+    yWarning() << "Deprecated";
+ //   for(int i = 0; i < nparticles; i++)
+ //       ps[i].setInlierParameter(value);
 }
 
 void vParticlefilter::setNegativeBias(double value)
 {
-    for(int i = 0; i < nparticles; i++)
-        ps[i].setNegativeBias(value);
+    yWarning() << "Deprecated";
+  //  for(int i = 0; i < nparticles; i++)
+   //     ps[i].setNegativeBias(value);
 }
 
 void vParticlefilter::setAdaptive(bool value)
@@ -380,15 +178,15 @@ void vParticlefilter::performObservation(const deque<AE> &q)
 
         for(int i = 0; i < nparticles; i++) {
             for(int j = 0; j < (int)q.size(); j++) {
-                //AE* v = read_as<AE>(q[j]);
                 ps[i].incrementalLikelihood(q[j].x, q[j].y, j);
             }
         }
 
         for(int i = 0; i < nparticles; i++) {
             ps[i].concludeLikelihood();
-            normval += ps[i].getw();
+            normval += ps[i].weight;
         }
+
     } else {
 
         //START MULTI-THREAD
@@ -402,11 +200,13 @@ void vParticlefilter::performObservation(const deque<AE> &q)
         }
     }
 
+    normval = 1.0 / normval;
+
     pwsumsq = 0;
     maxlikelihood = 0;
     for(int i = 0; i < nparticles; i ++) {
-        ps[i].updateWeightSync(normval);
-        pwsumsq += pow(ps[i].getw(), 2.0);
+        ps[i].normaliseWithinPopulation(normval);
+        pwsumsq += pow(ps[i].weight, 2.0);
         maxlikelihood = std::max(maxlikelihood, ps[i].getl());
     }
 
@@ -416,23 +216,19 @@ void vParticlefilter::extractTargetPosition(double &x, double &y, double &r)
 {
     x = 0; y = 0; r = 0;
 
-    for(int i = 0; i < nparticles; i++) {
-        double w = ps[i].getw();
-        x += ps[i].getx() * w;
-        y += ps[i].gety() * w;
-        r += ps[i].getr() * w;
+    for(auto &p : ps) {
+        x += p.state[templatedParticle::x] * p.weight;
+        y += p.state[templatedParticle::y] * p.weight;
+        r += p.getAbsoluteSize() * p.weight;
     }
+
 }
 
 void vParticlefilter::extractTargetWindow(double &tw)
 {
     tw = 0;
-
-    for(int i = 0; i < nparticles; i++) {
-        double w = ps[i].getw();
-        tw += ps[i].getnw() * w;
-
-    }
+    for(auto &p : ps)
+        tw += p.getn() * p.weight;
 
 }
 
@@ -443,25 +239,21 @@ void vParticlefilter::performResample()
         double accum = 0;
         for(int i = 0; i < nparticles; i++) {
             ps_snap[i] = ps[i];
-            accum += ps[i].getw();
+            accum += ps[i].weight;
             accum_dist[i] = accum;
         }
 
         //perform the resample
         for(int i = 0; i < nparticles; i++) {
-            double rn = nRandoms * (double)rand() / RAND_MAX;
-            if(rn > 1.0)
-                ps[i].randomise(res.width, res.height, rbound_max);
-            else {
+            double rn = (double)rand() / RAND_MAX;
                 int j = 0;
                 for(j = 0; j < nparticles; j++)
                     if(accum_dist[j] > rn) break;
                 ps[i] = ps_snap[j];
-            }
         }
     }
-
 }
+
 
 void vParticlefilter::performPrediction(double sigma)
 {
@@ -469,9 +261,51 @@ void vParticlefilter::performPrediction(double sigma)
         ps[i].predict(sigma);
 }
 
-std::vector<vParticle> vParticlefilter::getps()
+std::vector<templatedParticle> vParticlefilter::getps()
 {
     return ps;
+}
+
+double vParticlefilter::initialiseAsCircle(int r)
+{
+    appearance.resize(r*2+1, r*2+1);
+    appearance.zero();
+
+    double max_likelihood = 0;
+
+    for(size_t y = 0; y < appearance.height(); y++) {
+        for(size_t x = 0; x < appearance.width(); x++) {
+
+            double d = sqrt((y - r) * (y - r) + (x - r) * (x - r)) - r;
+
+            if(d > 2.0)
+                appearance(y, x) = 0.0;
+
+            else if(d < -2.0)
+                appearance(y, x) = -1.0;
+
+            else if(d < 1.0 && d > -1.0)
+            {
+                appearance(y, x) = 1.0;
+                max_likelihood += appearance(y, x);
+            }
+            else
+            {
+                appearance(y, x) = (2.0 - fabs(d));
+                max_likelihood += appearance(y, x);
+            }
+        }
+    }
+
+//    for(size_t y = 0; y < appearance.height(); y++) {
+//        for(size_t x = 0; x < appearance.width(); x++) {
+//            std::cout << appearance(y, x) << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+
+    return max_likelihood;
+
 }
 
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -486,7 +320,7 @@ vPartObsThread::vPartObsThread(int pStart, int pEnd)
     done.lock();
 }
 
-void vPartObsThread::setDataSources(std::vector<vParticle> *particles,
+void vPartObsThread::setDataSources(std::vector<templatedParticle> *particles,
                                     const deque<AE> *stw)
 {
     this->particles = particles;
@@ -527,11 +361,69 @@ void vPartObsThread::run()
         normval = 0.0;
         for(int i = pStart; i < pEnd; i++) {
             (*particles)[i].concludeLikelihood();
-            normval += (*particles)[i].getw();
+            normval += (*particles)[i].weight;
         }
 
         done.unlock();
 
+    }
+
+}
+
+
+/*////////////////////////////////////////////////////////////////////////////*/
+// templatedParticle
+/*////////////////////////////////////////////////////////////////////////////*/
+
+templatedParticle::templatedParticle()
+{
+    appearance = nullptr;
+}
+
+templatedParticle& templatedParticle::operator=(const templatedParticle &rhs)
+{
+    this->state = rhs.state;
+    this->weight = rhs.weight;
+    return *this;
+}
+
+void templatedParticle::setAppearance(ImageOf<PixelFloat> *appearance, double max_likelihood)
+{
+    this->appearance = appearance;
+    this->max_likelihood = max_likelihood;
+    this->min_likelihood = 0.03 * max_likelihood;
+    this->offset_x = appearance->width() / 2;
+    this->offset_y = appearance->height() / 2;
+}
+
+bool templatedParticle::setConstraints(vector<double> mins, vector<double> maxs)
+{
+    //if(mins.size() != state.size()) return false;
+    //if(maxs.size() != state.size()) return false;
+
+    min_state = mins;
+    max_state = maxs;
+    constrain = true;
+
+    return true;
+}
+
+void templatedParticle::predict(double sigma)
+{
+    state[x] = generateUniformNoise(state[x], sigma);
+    state[y] = generateUniformNoise(state[y], sigma);
+    state[s] = generateUniformNoise(state[s], 0.05);
+
+    if(constrain) checkConstraints();
+
+}
+
+void templatedParticle::checkConstraints()
+{
+
+    for(size_t i = 0; i < state.size(); i++) {
+        if(state[i] < min_state[i]) state[i] = min_state[i];
+        if(state[i] > max_state[i]) state[i] = max_state[i];
     }
 
 }

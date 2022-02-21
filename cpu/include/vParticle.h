@@ -23,262 +23,98 @@
 #include <yarp/sig/all.h>
 
 using namespace ev;
+using namespace yarp::os;
+using namespace yarp::sig;
 
 class vParticle;
 
-void drawEvents(yarp::sig::ImageOf< yarp::sig::PixelBgr> &image, deque<AE> &q, int offsetx = 0);
 
-void drawcircle(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, int cx, int cy, int cr, int id = 0);
-
-void drawDistribution(yarp::sig::ImageOf<yarp::sig::PixelBgr> &image, std::vector<vParticle> &indexedlist);
-
-class preComputedBins;
-
-
-class preComputedBins
-{
-
-private:
-
-    yarp::sig::Matrix ds;
-    yarp::sig::Matrix bs;
-    int rows;
-    int cols;
-    int offsetx;
-    int offsety;
-
-public:
-
-    preComputedBins()
-    {
-        rows = 0;
-        cols = 0;
-        offsetx = 0;
-        offsety = 0;
-    }
-
-    void configure(int height, int width, double maxrad, int nBins)
-    {
-        rows = (height + maxrad) * 2 + 1;
-        cols = (width + maxrad) * 2 + 1;
-        offsety = rows/2;
-        offsetx = cols/2;
-
-        ds.resize(rows, cols);
-        bs.resize(rows, cols);
-        for(int i = 0; i < rows; i++) {
-            for(int j = 0; j < cols; j++) {
-
-                int dy = i - offsety;
-                int dx = j - offsetx;
-
-                ds(i, j) = sqrt(pow(dx, 2.0) + pow(dy, 2.0));
-                bs(i, j) = (nBins-1) * (atan2(dy, dx) + M_PI) / (2.0 * M_PI);
-
-            }
-        }
-    }
-
-    inline double queryDistance(int dy, int dx)
-    {
-        dy += offsety; dx += offsetx;
-//        if(dy < 0 || dy > rows || dx < 0 || dx > cols) {
-//            std::cout << "preComputatedBins not large enough" << std::endl;
-//            return 0.0;
-//        }
-        return ds(dy, dx);
-    }
-
-    inline int queryBinNumber(double dy, double dx)
-    {
-        dy += offsety; dx += offsetx;
-//        if(dy < 0 || dy > rows || dx < 0 || dx > cols) {
-//            std::cout << "preComputatedBins not large enough" << std::endl;
-//            return 0.0;
-//        }
-        return (int)(bs(dy, dx) + 0.5);
-    }
-
-};
-
-class projectedModel {
-
-private:
-    yarp::sig::ImageOf<yarp::sig::PixelFloat> projection;
-
-public:
-
-    projectedModel();
-
-    void initialiseCircle(int r);
-
-    inline double query(int x, int y);
-
-};
 
 /*////////////////////////////////////////////////////////////////////////////*/
-//VPARTICLETRACKER
+// templatedParticle
 /*////////////////////////////////////////////////////////////////////////////*/
-class vParticle
+class templatedParticle
 {
-private:
+protected:
 
-    //static parameters
-    int id;
-    double minlikelihood;
-    double inlierParameter;
-    double variance;
-    int angbuckets;
-    preComputedBins *pcb;
-    double negativeBias;
-    double negativeScaler;
+    int offset_x, offset_y;
 
     bool constrain;
-    int minx, maxx;
-    int miny, maxy;
-    int minr, maxr;
+    vector<double> min_state;
+    vector<double> max_state;
 
-    //temporary parameters (on update cycle)
-    double likelihood;
-    int nw;
-    double predlike;
-    int    outlierCount;
-    int    inlierCount;
-    yarp::sig::Vector angdist;
-    yarp::sig::Vector negdist;
+    //incremental counters
+    double likelihood, score, min_likelihood, max_likelihood;
+    int n;
 
-    //state and weight
-    double x;
-    double y;
-    double r;
-
-    double weight;
+    void checkConstraints();
 
 public:
 
-    double score;
+    enum { x = 0, y = 1, s = 2};
 
+    int id;
+    vector<double> state;
+    double weight;
+    ImageOf<PixelFloat> *appearance;
 
-    vParticle();
-    vParticle& operator=(const vParticle &rhs);
+    templatedParticle();
+    //templatedParticle(const templatedParticle &from);
+    templatedParticle& operator=(const templatedParticle &rhs);
 
-    //initialise etc.
-    void initialiseParameters(int id, double minLikelihood, double negativeBias, double inlierParam, double variance, int angbuckets);
-    void updateMinLikelihood(double value);
-    void attachPCB(preComputedBins *pcb) { this->pcb = pcb; }
-
-    void initialiseState(double x, double y, double r);
-    void randomise(int x, int y, int r);
-
-    void resetWeight(double value);
-    void resetRadius(double value);
-    void resetArea();
-    void setContraints(int minx, int maxx, int miny, int maxy, int minr, int maxr);
-    void checkConstraints();
-    void setNegativeBias(double value);
-    void setInlierParameter(double value);
-
-
-    //update
+    void setAppearance(ImageOf<PixelFloat> *appearance, double max_likelihood);
+    bool setConstraints(vector<double> mins, vector<double> maxs);
     void predict(double sigma);
-    double approxatan2(double y, double x);
+    double getl() { return likelihood; }
+    double getn() { return n; }
+    double getAbsoluteSize() { return offset_x / state[s]; }
 
     void initLikelihood(int windowSize)
     {
-        likelihood = minlikelihood;
-        inlierCount = 0;
-        outlierCount = 0;
-        //angdist = 1.0 + inlierParameter;
-        angdist = 0;
+        likelihood = min_likelihood;
         score = 0;
-        nw = windowSize;
-        resetArea();
+        n = 0;
     }
 
     inline void incrementalLikelihood(int vx, int vy, int n)
     {
-        double dx = vx - x;
-        double dy = vy - y;
-
-        double sqrd = pcb->queryDistance((int)dy, (int)dx) - r;
-        //double sqrd = sqrt(pow(dx, 2.0) + pow(dy, 2.0)) - r;
-        double fsqrd = std::fabs(sqrd);
-
-        //int a = 0.5 + (angbuckets-1) * (atan2(dy, dx) + M_PI) / (2.0 * M_PI);
-        int a = pcb->queryBinNumber((int)dy, (int)dx);
-
-        //OPTION 2
-
-        if(sqrd > 1.0 + inlierParameter)
+        int index_x = (vx - state[x]) * state[s] + offset_x + 0.5;
+        int index_y = (vy - state[y]) * state[s] + offset_y + 0.5;
+        if(index_x < 0 ||
+           index_y < 0 ||
+           index_x >= (int)appearance->width() ||
+           index_y >= (int)appearance->height())
+        {
             return;
-
-        double cval = 0;
-        if(fsqrd < 1.0)
-            cval = 1.0;
-        else if(fsqrd < 1.0 + inlierParameter)
-            cval = (1.0 + inlierParameter - fsqrd) / inlierParameter;
-        if(cval) {
-            double improve = cval - angdist[a];
-            if(improve > 0) {
-                angdist[a] = cval;
-                score += improve;
-                if(score >= likelihood) {
-                    likelihood = score;
-                    nw = n;
-                }
-            }
-        } else {
-            score -= negativeScaler;
         }
 
-        return;
-
-
-        //ORIGINAL
-//        if(sqrd > inlierParameter) {
-//            return;
-//        }
-
-//        if(sqrd > -inlierParameter) {
-//            //int a = 0.5 + (angbuckets-1) * (atan2(dy, dx) + M_PI) / (2.0 * M_PI);
-
-//            //int a = pcb->queryBinNumber((int)dy, (int)dx);
-
-//            if(!angdist[a]) {
-//                inlierCount++;
-//                angdist[a] = 1;
-
-//                score = inlierCount - (negativeScaler * outlierCount);
-//                if(score >= likelihood) {
-//                    likelihood = score;
-//                    nw = n;
-//                }
-
-//            }
-
-//        } else {
-//            outlierCount++;
-//        }
+        score += (*appearance)(index_x, index_y);
+        if(score >= likelihood)
+        {
+            likelihood = score;
+            this->n = n;
+        }
 
     }
 
     void concludeLikelihood()
     {
-
-        //if(likelihood < minlikelihood) nw = n;
-        weight = likelihood * weight;
+        likelihood *= (state[s] * state[s]);
+        if(likelihood < min_likelihood) {
+            //yInfo() << "scaling up likelihood from minimum";
+            likelihood = min_likelihood;
+        }
+        if(likelihood > max_likelihood) {
+        //    yInfo() << "scaling down likelihood from maximum";
+            likelihood = max_likelihood;
+        }
+        weight *= likelihood;
     }
 
-    void updateWeightSync(double normval);
-
-    //get
-    inline int    getid() { return id; }
-    inline double getx()  { return x; }
-    inline double gety()  { return y; }
-    inline double getr()  { return r; }
-    inline double getw()  { return weight; }
-    inline double getl()  { return likelihood; }
-    inline double getnw() { return nw; }
+    void normaliseWithinPopulation(double normval)
+    {
+        weight *= normval;
+    }
 
 
 };
@@ -297,13 +133,13 @@ private:
 
     double normval;
 
-    std::vector<vParticle> *particles;
+    std::vector<templatedParticle> *particles;
     const deque<AE> *stw;
 
 public:
 
     vPartObsThread(int pStart, int pEnd);
-    void setDataSources(std::vector<vParticle> *particles, const deque<AE> *stw);
+    void setDataSources(std::vector<templatedParticle> *particles, const deque<AE> *stw);
     void process();
     double waittilldone();
 
@@ -323,15 +159,12 @@ private:
     int nthreads;
     ev::resolution res;
     bool adaptive;
-    int bins;
     int seedx, seedy, seedr;
-    double nRandoms;
 
     //data
-    std::vector<vParticle> ps;
-    std::vector<vParticle> ps_snap;
+    std::vector<templatedParticle> ps;
+    std::vector<templatedParticle> ps_snap;
     std::vector<double> accum_dist;
-    preComputedBins pcb;
     std::vector<vPartObsThread *> computeThreads;
 
     //variables
@@ -339,15 +172,17 @@ private:
     int rbound_min;
     int rbound_max;
 
+    double initialiseAsCircle(int r);
+
 public:
 
     double maxlikelihood;
+    yarp::sig::ImageOf< yarp::sig::PixelFloat > appearance;
 
     vParticlefilter() {}
 
-    void initialise(int width, int height, int nparticles,
-                    int bins, bool adaptive, int nthreads, double minlikelihood,
-                    double inlierThresh, double randoms, double negativeBias);
+    double initialise(int width, int height, int nparticles, bool adaptive,
+                    int nthreads);
 
     void setSeed(int x, int y, int r = 0);
     void resetToSeed();
@@ -356,13 +191,14 @@ public:
     void setNegativeBias(double value);
     void setAdaptive(bool value = true);
 
+    void setAppearance(const ImageOf<PixelFloat> &new_appearance, double max_likelihood);
     void performObservation(const deque<AE> &q);
     void extractTargetPosition(double &x, double &y, double &r);
     void extractTargetWindow(double &tw);
     void performResample();
     void performPrediction(double sigma);
 
-    std::vector<vParticle> getps();
+    std::vector<templatedParticle> getps();
 
 };
 
