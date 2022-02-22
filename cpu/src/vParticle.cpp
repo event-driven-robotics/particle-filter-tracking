@@ -100,11 +100,11 @@ double vParticlefilter::initialise(int width, int height, int nparticles,
     p.weight = 1.0 / (double)nparticles;
 
     const static double circ_base_radius = 15.0;
-    vector<double> mins = {0.0, 0.0, circ_base_radius/25.5};
-    vector<double> maxs = {(double)res.width, (double)res.height, circ_base_radius/4.5};
+    vector<double> mins = {0.0, 0.0, circ_base_radius/25.5}; //largest diameter (51)
+    vector<double> maxs = {(double)res.width, (double)res.height, circ_base_radius/4.5}; //smallest diameter (9)
     p.setConstraints(mins, maxs);
 
-    double max_likelihood = initialiseAsCircle(circ_base_radius);
+    double max_likelihood = initialiseAsEllipse(circ_base_radius);
     p.setAppearance(&appearance, max_likelihood);
 
     for(int i = 0; i < this->nparticles; i++) {
@@ -131,7 +131,7 @@ void vParticlefilter::setAppearance(const ImageOf<PixelFloat> &new_appearance,
 
 }
 
-void vParticlefilter::setSeed(int x, int y, int r)
+void vParticlefilter::setSeed(double x, double y, double r)
 {
     seedx = x; seedy = y; seedr = r;
 }
@@ -273,6 +273,86 @@ void vParticlefilter::performPrediction(double sigma)
 std::vector<templatedParticle> vParticlefilter::getps()
 {
     return ps;
+}
+
+// cv::Mat createCustom(int width, int height){
+
+//     cv::Point2d origin((width+4)/2, (height)/2);
+//     cv::Mat ell_filter = cv::Mat::zeros(height, width+4, CV_32F);
+//     for(int x=0; x< ell_filter.cols; x++) {
+//         for(int y=0; y< ell_filter.rows; y++) {
+//             double dx = (pow(x,2) -2*origin.x*x + pow(origin.x,2))/pow((width)/2,2);
+//             double dy = (pow(y,2) -2*origin.y*y + pow(origin.y,2))/pow((height)/2,2);
+//             double value = dx+ dy;
+//             if(value > 0.9)
+//                 ell_filter.at<float>(y, x) = -0.2;
+//             else if (value > 0.4 && value<=0.9)
+//                 ell_filter.at<float>(y, x) = 1;
+//             else
+//                 ell_filter.at<float>(y, x) = 0;
+//         }
+//     }
+
+//     return ell_filter;
+// }
+
+double vParticlefilter::initialiseAsEllipse(double r)
+{
+    appearance.resize(r*2+1, r*2+1);
+    appearance.zero();
+
+    double max_likelihood = 0;
+
+    double a = r;
+    double b = 1.9*r;
+
+    for(double y = 0; y < appearance.height(); y++) {
+        for(double x = 0; x < appearance.width(); x++) {
+
+            double dx = (pow(x, 2) - 2 * r * x + pow(r, 2)) / pow((a) / 2, 2);
+            double dy = (pow(y, 2) - 2 * r * y + pow(r, 2)) / pow((b) / 2, 2);
+            double value = sqrt(dx*dx + dy*dy);
+            if (value > 0.8 && value < 1.2) {
+                appearance(y, x) = 1.0;
+                max_likelihood += appearance(y, x);
+            } else if (value <= 0.8) {
+                appearance(y, x) = -1;
+                
+            }
+           // else
+            //    appearance = 0;
+
+            //double d = sqrt((y - r) * (y - r) + (x - r) * (x - r)) - r;
+            // double d = (x-r)*(x-r)/(r*r) + (y-r)*(y-r)/(r*r) - 1;
+
+            // if(d > 2.0)
+            //     appearance(y, x) = 0.0;
+
+            // else if(d < -2.0)
+            //     appearance(y, x) = -1.0;
+
+            // else if(d < 1.0 && d > -1.0)
+            // {
+            //     appearance(y, x) = 1.0;
+            //     max_likelihood += appearance(y, x);
+            // }
+            // else
+            // {
+            //     appearance(y, x) = (2.0 - fabs(d));
+            //     max_likelihood += appearance(y, x);
+            // }
+        }
+    }
+
+//    for(size_t y = 0; y < appearance.height(); y++) {
+//        for(size_t x = 0; x < appearance.width(); x++) {
+//            std::cout << appearance(y, x) << " ";
+//        }
+//        std::cout << std::endl;
+//    }
+
+    return max_likelihood;
+
 }
 
 double vParticlefilter::initialiseAsCircle(int r)

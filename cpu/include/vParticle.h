@@ -155,7 +155,7 @@ private:
     int nthreads;
     ev::resolution res;
     bool adaptive;
-    int seedx, seedy, seedr;
+    double seedx, seedy, seedr;
 
     //data
     std::vector<templatedParticle> ps;
@@ -169,6 +169,7 @@ private:
     int rbound_max;
 
     double initialiseAsCircle(int r);
+    double initialiseAsEllipse(double r);
 
 public:
 
@@ -180,7 +181,7 @@ public:
     double initialise(int width, int height, int nparticles, bool adaptive,
                     int nthreads);
 
-    void setSeed(int x, int y, int r = 0);
+    void setSeed(double x, double y, double r = 0.0);
     void resetToSeed();
     void setMinLikelihood(double value);
     void setInlierParameter(double value);

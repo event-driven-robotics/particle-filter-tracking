@@ -43,9 +43,9 @@ int main(int argc, char * argv[])
 
     /* prepare and configure the resource finder */
     yarp::os::ResourceFinder rf;
-    rf.setVerbose( true );
-    rf.setDefaultContext( "event-driven" );
-    rf.setDefaultConfigFile( "vParticleFilterTracker.ini" );
+    //rf.setVerbose( false );
+    //rf.setDefaultContext( "event-driven" );
+    //rf.setDefaultConfigFile( "vParticleFilterTracker.ini" );
     rf.configure( argc, argv );
 
     return instance.runModule(rf);
@@ -133,9 +133,9 @@ void drawTemplate(ImageOf<PixelBgr> &image, ImageOf<PixelFloat> &appearance,
 
             PixelBgr &p = image(i_x, i_y);
             if(appearance(x, y) > 0) {
-                p.g = appearance(x, y) * 255;
+                p.g = appearance(x, y) * 125;
             } else if(appearance(x, y) < 0) {
-                p.r = -appearance(x, y) * 255;
+                p.r = -appearance(x, y) * 125;
             }
 
 
@@ -302,18 +302,18 @@ bool delayControl::updateModule()
     // }
 
     //output the debug image if connected
-    if(debug_port.getOutputCount()) {
-        ImageOf<PixelBgr> &image = debug_port.prepare();
+    // if(debug_port.getOutputCount()) {
+    //     ImageOf<PixelBgr> &image = debug_port.prepare();
 
-        m.lock();
-        image.resize(res.width, res.height);
-        image.zero();
-        drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
-        drawEvents(image, qROI.q);
-        m.unlock();
+    //     m.lock();
+    //     image.resize(res.width, res.height);
+    //     image.zero();
+    //     drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+    //     drawEvents(image, qROI.q);
+    //     m.unlock();
 
-        debug_port.write();
-    }
+    //     debug_port.write();
+    // }
 
     return Thread::isRunning();
 }
@@ -393,10 +393,13 @@ void delayControl::run()
     yarp::os::Stamp ystamp{-1, -1.0};
     double nw = 0;
 
-    if(batch_size)
-        qROI.setSize(batch_size);
-    else
-        qROI.setSize(50);
+    //initialise the position
+    vpf.extractTargetPosition(avgx, avgy, avgr);
+    double roisize = avgr + 10;
+
+    //set the qROI first ROI and also fill it in.
+    //qROI.setROI(0, res.width, 0, res.height);
+    qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
 
     //read some data to extract the channel
     ev::packet<AE> *q = nullptr;
@@ -408,12 +411,26 @@ void delayControl::run()
         input_port.getEnvelope(ystamp);
         if(time_offset < 0) time_offset = ystamp.getTime();
         channel = (*q)[0].channel;
+        for(auto &v : *q)
+            qROI.add(v);
     }
-    double latency_offset = yarp::os::Time::now();
-    
 
-    //initialise the position
-    vpf.extractTargetPosition(avgx, avgy, avgr);
+    double latency_offset = yarp::os::Time::now();
+
+    if (batch_size)
+        qROI.setSize(batch_size);
+    else
+        qROI.setSize(300);
+
+    //test here that when we start, we have the correct position, time, and size.
+    if (debug_port.getOutputCount()) {
+        ImageOf<PixelBgr> &image = debug_port.prepare();
+        image.resize(res.width, res.height);
+        image.zero();
+        //drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+        drawEvents(image, qROI.q);
+        debug_port.write();
+    }
 
     while(true) {
 
@@ -428,13 +445,13 @@ void delayControl::run()
         m.lock();
 
         //from the previous update resize if needed
-        double roisize = avgr + 10;
+        roisize = avgr + 20;
         qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
 
         //set our new window #events
         if(!batch_size) {
             if(qROI.q.size() - nw > 30)
-                qROI.setSize(std::max(nw, 50.0));
+                qROI.setSize(std::max(nw, 300.0));
             if(qROI.q.size() > 3000)
                 qROI.setSize(3000);
         }
@@ -476,6 +493,16 @@ void delayControl::run()
         dx = avgx, dy = avgy, dr = avgr;
         vpf.extractTargetPosition(avgx, avgy, avgr);
         dx = avgx - dx; dy = avgy - dy; dr = avgr - dr;
+
+        if (debug_port.getOutputCount()) {
+            ImageOf<PixelBgr> &image = debug_port.prepare();
+            image.resize(res.width, res.height);
+            image.zero();
+            drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+            drawEvents(image, qROI.q);
+            debug_port.write();
+        }
+        yarp::os::Time::delay(0.05);
 
         Tresample = yarp::os::Time::now();
         vpf.performResample();
