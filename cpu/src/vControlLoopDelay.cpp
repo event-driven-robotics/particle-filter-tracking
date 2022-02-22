@@ -36,11 +36,7 @@ using yarp::os::createVocab;
 int main(int argc, char * argv[])
 {
     /* initialize yarp network */
-    yarp::os::Network yarp;
-    if(!yarp.checkNetwork()) {
-        std::cout << "Could not connect to YARP" << std::endl;
-        return false;
-    }
+
 
     /* create the module */
     delayControl instance;
@@ -206,6 +202,13 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
         yInfo() << "--seed \"(x, y, r)\", --start_time <s>, --file <full_path>";
         return false;
     }
+
+    yarp::os::Network yarp;
+    if(!yarp.checkNetwork(2.0)) {
+        std::cout << "Could not connect to YARP" << std::endl;
+        return false;
+    }
+
     //module name and control
     setName((rf.check("name", Value("/vpf")).asString()).c_str());
     if(!rpcPort.open(getName() + "/cmd")) {
@@ -274,6 +277,9 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
     //input_port.setQLimit(rf.check("qlimit", Value(0)).asInt());
     if(!input_port.open(getName() + "/AE:i"))
         return false;
+
+    yarp::os::Network::connect("/atis3/AE:o", getName("/AE:i"), "fast_tcp");
+    yarp::os::Network::connect(getName("/debug:o"), "/ptView", "fast_tcp");
 
     //if(!start)
      //   pause();
