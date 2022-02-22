@@ -99,11 +99,12 @@ double vParticlefilter::initialise(int width, int height, int nparticles,
     templatedParticle p;
     p.weight = 1.0 / (double)nparticles;
 
-    vector<double> mins = {0.0, 0.0, 1.0/5.0};
-    vector<double> maxs = {(double)res.width, (double)res.height, 1.0 / 1.0};
+    const static double circ_base_radius = 15.0;
+    vector<double> mins = {0.0, 0.0, circ_base_radius/25.5};
+    vector<double> maxs = {(double)res.width, (double)res.height, circ_base_radius/4.5};
     p.setConstraints(mins, maxs);
 
-    double max_likelihood = initialiseAsCircle(30);
+    double max_likelihood = initialiseAsCircle(circ_base_radius);
     p.setAppearance(&appearance, max_likelihood);
 
     for(int i = 0; i < this->nparticles; i++) {

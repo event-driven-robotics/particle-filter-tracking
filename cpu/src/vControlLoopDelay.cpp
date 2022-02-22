@@ -233,6 +233,10 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
         vpf.resetToSeed();
     }
 
+    start_time = rf.check("start_time", Value(-1.0)).asDouble();
+
+    
+
     // if(!scopePort.open(getName() + "/scope:o"))
     //     return false;
 
@@ -243,15 +247,15 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
     // if(!raw_output_port.open(getName() + "/state:o"))
     //     return false;
 
-    // if(!debugPort.open(getName() + "/debug:o"))
-    //     return false;
+    if(!debug_port.open(getName("/debug:o")))
+        return false;
 
     //input_port.setQLimit(rf.check("qlimit", Value(0)).asInt());
     if(!input_port.open(getName() + "/AE:i"))
         return false;
 
-    if(!start)
-        pause();
+    //if(!start)
+     //   pause();
 
     return Thread::start();
 
@@ -271,18 +275,18 @@ bool delayControl::updateModule()
     // }
 
     //output the debug image if connected
-    // if(debugPort.getOutputCount()) {
-    //     ImageOf<PixelBgr> &image = debugPort.prepare();
+    if(debug_port.getOutputCount()) {
+        ImageOf<PixelBgr> &image = debug_port.prepare();
 
-    //     m.lock();
-    //     image.resize(res.width, res.height);
-    //     image.zero();
-    //     drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
-    //     drawEvents(image, qROI.q);
-    //     m.unlock();
+        m.lock();
+        image.resize(res.width, res.height);
+        image.zero();
+        drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+        drawEvents(image, qROI.q);
+        m.unlock();
 
-    //     debugPort.write();
-    // }
+        debug_port.write();
+    }
 
     return Thread::isRunning();
 }
@@ -328,7 +332,7 @@ void delayControl::onStop()
     input_port.close();
     // event_output_port.close();
     // raw_output_port.close();
-    // debugPort.close();
+    debug_port.close();
     // scopePort.close();
 }
 
@@ -351,7 +355,7 @@ void delayControl::run()
 
     targetproc = 0;
     unsigned int i = 0;
-    yarp::os::Stamp ystamp;
+    yarp::os::Stamp ystamp{-1, -1.0};
     double nw = 0;
 
     if(batch_size)
@@ -360,10 +364,17 @@ void delayControl::run()
         qROI.setSize(50);
 
     //read some data to extract the channel
-    ev::packet<AE> *q = input_port.read();
-    if(!q || Thread::isStopping()) return;
-    input_port.getEnvelope(ystamp);
+    ev::packet<AE> *q = nullptr;
     int channel = 0;
+    double time_offset = -1.0;
+    while(ystamp.getTime()-time_offset < start_time) {
+        q = input_port.read();
+        if(!q || Thread::isStopping()) return;
+        input_port.getEnvelope(ystamp);
+        if(time_offset < 0) time_offset = ystamp.getTime();
+        channel = (*q)[0].channel;
+    }
+    
 
     //initialise the position
     vpf.extractTargetPosition(avgx, avgy, avgr);

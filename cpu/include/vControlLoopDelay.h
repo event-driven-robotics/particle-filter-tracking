@@ -55,6 +55,7 @@ private:
     //data structures and ports
     yarp::os::Port rpcPort; 
     ev::BufferedPort<ev::AE> input_port;
+    yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> > debug_port;
     roiq qROI;
     vParticlefilter vpf;
     std::mutex m;
@@ -69,6 +70,7 @@ private:
     double motionVariance;
     int batch_size;
     double output_sample_delta;
+    double start_time;
 
     //diagnostics
     double filterPeriod;
