@@ -35,8 +35,3 @@ install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 yarp_install(FILES ${PROJECT_NAME}.ini
              DESTINATION ${EVENT-DRIVEN_CONTEXTS_INSTALL_DIR}/event-driven)
-
-option(ADD_DOCS_TO_IDE "Explicitly add apps/drivers to project IDE" OFF)
-if(ADD_DOCS_TO_IDE)
-    add_custom_target(${PROJECT_NAME}_docs SOURCES ${PROJECT_NAME}.ini)
-endif(ADD_DOCS_TO_IDE)

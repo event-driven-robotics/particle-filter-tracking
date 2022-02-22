@@ -17,10 +17,18 @@
  */
 
 #include "vParticle.h"
+#include <event-driven/core.h>
+#include <yarp/sig/all.h>
 #include <limits>
+#include <vector>
 
-using ev::event;
-using ev::AddressEvent;
+using std::vector;
+using std::deque;
+using ev::AE;
+using yarp::sig::ImageOf;
+using yarp::sig::PixelFloat;
+using yarp::sig::PixelBgr;
+
 
 double generateGaussianNoise(double mu, double sigma)
 {

@@ -18,8 +18,19 @@
 
 #include "vControlLoopDelay.h"
 #include <cmath>
-
 #include <algorithm>
+#include <iostream>
+
+using std::vector;
+using std::deque;
+using ev::AE;
+using ev::packet;
+using yarp::sig::ImageOf;
+using yarp::sig::PixelFloat;
+using yarp::sig::PixelBgr;
+using yarp::os::Value;
+using yarp::os::Bottle;
+using yarp::os::createVocab;
 
 int main(int argc, char * argv[])
 {
@@ -222,20 +233,20 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
         vpf.resetToSeed();
     }
 
-    if(!scopePort.open(getName() + "/scope:o"))
-        return false;
+    // if(!scopePort.open(getName() + "/scope:o"))
+    //     return false;
 
-    event_output_port.setWriteType(GaussianAE::tag);
-    if(!event_output_port.open(getName() + "/GAE:o"))
-        return false;
+    //event_output_port.setWriteType(GaussianAE::tag);
+    // if(!event_output_port.open(getName() + "/GAE:o"))
+    //     return false;
 
-    if(!raw_output_port.open(getName() + "/state:o"))
-        return false;
+    // if(!raw_output_port.open(getName() + "/state:o"))
+    //     return false;
 
-    if(!debugPort.open(getName() + "/debug:o"))
-        return false;
+    // if(!debugPort.open(getName() + "/debug:o"))
+    //     return false;
 
-    input_port.setQLimit(rf.check("qlimit", Value(0)).asInt());
+    //input_port.setQLimit(rf.check("qlimit", Value(0)).asInt());
     if(!input_port.open(getName() + "/AE:i"))
         return false;
 
@@ -254,27 +265,24 @@ bool delayControl::interruptModule()
 bool delayControl::updateModule()
 {
     //output the scope if connected
-    if(scopePort.getOutputCount()) {
-        scopePort.prepare() = getTrackingStats();
-        scopePort.write();
-    }
+    // if(scopePort.getOutputCount()) {
+    //     scopePort.prepare() = getTrackingStats();
+    //     scopePort.write();
+    // }
 
     //output the debug image if connected
-    if(debugPort.getOutputCount()) {
-        ImageOf<PixelBgr> &image = debugPort.prepare();
+    // if(debugPort.getOutputCount()) {
+    //     ImageOf<PixelBgr> &image = debugPort.prepare();
 
-        m.lock();
-        image.resize(res.width, res.height);
-        image.zero();
-        drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
-        drawEvents(image, qROI.q);
-        m.unlock();
+    //     m.lock();
+    //     image.resize(res.width, res.height);
+    //     image.zero();
+    //     drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+    //     drawEvents(image, qROI.q);
+    //     m.unlock();
 
-        debugPort.write();
-
-
-
-    }
+    //     debugPort.write();
+    // }
 
     return Thread::isRunning();
 }
@@ -301,10 +309,10 @@ yarp::sig::Vector delayControl::getTrackingStats()
 {
     yarp::sig::Vector stats(10);
 
-    stats[0] = 1000*input_port.queryDelayT();
+    stats[0] = 0;//1000*input_port.queryDelayT();
     stats[1] = 1.0/filterPeriod;
     stats[2] = targetproc;
-    stats[3] = input_port.queryRate() / 1000.0;
+    stats[3] = 0;//input_port.queryRate() / 1000.0;
     stats[4] = dx;
     stats[5] = dy;
     stats[6] = dr;
@@ -318,10 +326,10 @@ yarp::sig::Vector delayControl::getTrackingStats()
 void delayControl::onStop()
 {
     input_port.close();
-    event_output_port.close();
-    raw_output_port.close();
-    debugPort.close();
-    scopePort.close();
+    // event_output_port.close();
+    // raw_output_port.close();
+    // debugPort.close();
+    // scopePort.close();
 }
 
 void delayControl::pause()
@@ -352,9 +360,10 @@ void delayControl::run()
         qROI.setSize(50);
 
     //read some data to extract the channel
-    const vector<AE> *q = input_port.read(ystamp);
+    ev::packet<AE> *q = input_port.read();
     if(!q || Thread::isStopping()) return;
-    int channel = q->front().getChannel();
+    input_port.getEnvelope(ystamp);
+    int channel = 0;
 
     //initialise the position
     vpf.extractTargetPosition(avgx, avgy, avgr);
@@ -362,8 +371,8 @@ void delayControl::run()
     while(true) {
 
         //calculate error
-        double delay = input_port.queryDelayT();
-        unsigned int unprocdqs = input_port.queryunprocessed();
+        double delay = 0;//input_port.queryDelayT();
+        unsigned int unprocdqs = input_port.getPendingReads();
         targetproc = M_PI * avgr;
         if(unprocdqs > 1 && delay > gain)
             targetproc *= (delay / gain);
@@ -392,9 +401,10 @@ void delayControl::run()
             //if we ran out of events get a new queue
             if(i >= q->size()) {
                 i = 0;
-                q = input_port.read(ystamp);
+                q = input_port.read();
                 if(!q || Thread::isStopping())
                     return;
+                input_port.getEnvelope(ystamp);
             }
 
             addEvents += qROI.add((*q)[i]);
@@ -440,46 +450,46 @@ void delayControl::run()
             py = avgy;
             pr = avgr;
 
-            double tw = qROI.q.front().stamp - qROI.q.back().stamp;
-            if(tw < 0) tw += vtsHelper::max_stamp;
+            double tw = qROI.q.front().ts - qROI.q.back().ts;
+            if(tw < 0) tw += ev::max_stamp;
 
             //output our event
-            if(event_output_port.getOutputCount()) {
-                auto ceg = make_event<GaussianAE>();
-                ceg->stamp = qROI.q.front().stamp;
-                ceg->setChannel(channel);
-                ceg->x = avgx;
-                ceg->y = avgy;
-                ceg->sigx = avgr;
-                ceg->sigy = tw;
-                ceg->sigxy = 1.0;
-                if(is_tracking)
-                    ceg->polarity = 1.0;
-                else
-                    ceg->polarity = 0.0;
+            // if(event_output_port.getOutputCount()) {
+            //     auto ceg = make_event<GaussianAE>();
+            //     ceg->stamp = qROI.q.front().stamp;
+            //     ceg->setChannel(channel);
+            //     ceg->x = avgx;
+            //     ceg->y = avgy;
+            //     ceg->sigx = avgr;
+            //     ceg->sigy = tw;
+            //     ceg->sigxy = 1.0;
+            //     if(is_tracking)
+            //         ceg->polarity = 1.0;
+            //     else
+            //         ceg->polarity = 0.0;
 
-                vQueue outq; outq.push_back(ceg);
-                event_output_port.write(outq, ystamp);
+            //     vQueue outq; outq.push_back(ceg);
+            //     event_output_port.write(outq, ystamp);
 
-            }
+            // }
             //output the raw data
-            if(raw_output_port.getOutputCount()) {
-                Bottle &next_sample = raw_output_port.prepare();
-                next_sample.clear();
-                next_sample.addVocab(createVocab('T', '_', 'S', 'T'));
-                next_sample.addInt(is_tracking);
-                next_sample.addDouble(qROI.q.front().stamp);
-                next_sample.addDouble(Time::now());
-                next_sample.addDouble(avgx);
-                next_sample.addDouble(avgy);
-                next_sample.addDouble(avgr);
-                next_sample.addDouble(channel);
-                next_sample.addDouble(tw);
-                next_sample.addDouble(vpf.maxlikelihood);
+            // if(raw_output_port.getOutputCount()) {
+            //     Bottle &next_sample = raw_output_port.prepare();
+            //     next_sample.clear();
+            //     next_sample.addVocab(createVocab('T', '_', 'S', 'T'));
+            //     next_sample.addInt(is_tracking);
+            //     next_sample.addDouble(qROI.q.front().stamp);
+            //     next_sample.addDouble(Time::now());
+            //     next_sample.addDouble(avgx);
+            //     next_sample.addDouble(avgy);
+            //     next_sample.addDouble(avgr);
+            //     next_sample.addDouble(channel);
+            //     next_sample.addDouble(tw);
+            //     next_sample.addDouble(vpf.maxlikelihood);
 
-                raw_output_port.setEnvelope(ystamp);
-                raw_output_port.write();
-            }
+            //     raw_output_port.setEnvelope(ystamp);
+            //     raw_output_port.write();
+            // }
 
 
         }

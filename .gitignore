@@ -10,6 +10,7 @@ modified_src/
 .idea
 *.orig
 CMakeLists.txt.user
+*.vscode
 
 # Prerequisites
 *.d

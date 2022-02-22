@@ -19,16 +19,12 @@
 #ifndef __VPARTICLE__
 #define __VPARTICLE__
 
-#include <event-driven/all.h>
+#include <event-driven/core.h>
 #include <yarp/sig/all.h>
-
-using namespace ev;
-using namespace yarp::os;
-using namespace yarp::sig;
+#include <vector>
+#include <deque>
 
 class vParticle;
-
-
 
 /*////////////////////////////////////////////////////////////////////////////*/
 // templatedParticle
@@ -40,8 +36,8 @@ protected:
     int offset_x, offset_y;
 
     bool constrain;
-    vector<double> min_state;
-    vector<double> max_state;
+    std::vector<double> min_state;
+    std::vector<double> max_state;
 
     //incremental counters
     double likelihood, score, min_likelihood, max_likelihood;
@@ -54,16 +50,16 @@ public:
     enum { x = 0, y = 1, s = 2};
 
     int id;
-    vector<double> state;
+    std::vector<double> state;
     double weight;
-    ImageOf<PixelFloat> *appearance;
+    yarp::sig::ImageOf<yarp::sig::PixelFloat> *appearance;
 
     templatedParticle();
     //templatedParticle(const templatedParticle &from);
     templatedParticle& operator=(const templatedParticle &rhs);
 
-    void setAppearance(ImageOf<PixelFloat> *appearance, double max_likelihood);
-    bool setConstraints(vector<double> mins, vector<double> maxs);
+    void setAppearance(yarp::sig::ImageOf<yarp::sig::PixelFloat> *appearance, double max_likelihood);
+    bool setConstraints(std::vector<double> mins, std::vector<double> maxs);
     void predict(double sigma);
     double getl() { return likelihood; }
     double getn() { return n; }
@@ -126,20 +122,20 @@ class vPartObsThread : public yarp::os::Thread
 {
 private:
 
-    yarp::os::Mutex processing;
-    yarp::os::Mutex done;
+    std::mutex processing;
+    std::mutex done;
     int pStart;
     int pEnd;
 
     double normval;
 
     std::vector<templatedParticle> *particles;
-    const deque<AE> *stw;
+    const std::deque<ev::AE> *stw;
 
 public:
 
     vPartObsThread(int pStart, int pEnd);
-    void setDataSources(std::vector<templatedParticle> *particles, const deque<AE> *stw);
+    void setDataSources(std::vector<templatedParticle> *particles, const std::deque<ev::AE> *stw);
     void process();
     double waittilldone();
 
@@ -191,8 +187,8 @@ public:
     void setNegativeBias(double value);
     void setAdaptive(bool value = true);
 
-    void setAppearance(const ImageOf<PixelFloat> &new_appearance, double max_likelihood);
-    void performObservation(const deque<AE> &q);
+    void setAppearance(const yarp::sig::ImageOf<yarp::sig::PixelFloat> &new_appearance, double max_likelihood);
+    void performObservation(const std::deque<ev::AE> &q);
     void extractTargetPosition(double &x, double &y, double &r);
     void extractTargetWindow(double &tw);
     void performResample();

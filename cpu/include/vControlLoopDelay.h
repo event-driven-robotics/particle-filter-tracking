@@ -15,20 +15,14 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-#ifndef __VCONTROLLOOPDELAYPF__
-#define __VCONTROLLOOPDELAYPF__
+#pragma once
 
 #include <yarp/os/all.h>
 #include <yarp/sig/Vector.h>
-#include <event-driven//all.h>
+#include <event-driven/core.h>
 #include "vParticle.h"
-
-using namespace ev;
-using namespace yarp::os;
-using namespace yarp::sig;
-
-
+#include <mutex>
+#include <deque>
 
 
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -38,7 +32,7 @@ class roiq
 {
 public:
 
-    deque<AE> q;
+    std::deque<ev::AE> q;
     unsigned int n;
     yarp::sig::Vector roi;
     bool use_TW;
@@ -46,7 +40,7 @@ public:
     roiq();
     void setSize(unsigned int value);
     void setROI(int xl, int xh, int yl, int yh);
-    int add(const AE &v);
+    int add(const ev::AE &v);
 
 };
 
@@ -59,17 +53,14 @@ class delayControl : public yarp::os::RFModule, public yarp::os::Thread
 private:
 
     //data structures and ports
-    Port rpcPort;
-    vReadPort< vector<AE> > input_port;
-    vWritePort event_output_port;
-    BufferedPort<Bottle> raw_output_port;
-    BufferedPort<Vector> scopePort;
+    yarp::os::Port rpcPort; 
+    ev::BufferedPort<ev::AE> input_port;
     roiq qROI;
     vParticlefilter vpf;
-    Mutex m;
+    std::mutex m;
 
     //variables
-    resolution res;
+    ev::resolution res;
     double avgx, avgy, avgr;
     int maxRawLikelihood;
     double gain;
@@ -87,8 +78,6 @@ private:
     double dr;
     double px, py, pr;
     ev::benchmark cpuusage;
-    BufferedPort< ImageOf<PixelBgr> > debugPort;
-
 
 public:
 
@@ -128,9 +117,3 @@ public:
 
 
 };
-
-
-
-
-
-#endif
