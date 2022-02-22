@@ -20,6 +20,7 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 
 using std::vector;
 using std::deque;
@@ -235,7 +236,17 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
 
     start_time = rf.check("start_time", Value(-1.0)).asDouble();
 
-    
+    if(rf.check("file")) {
+        std::string file_name = rf.find("file").asString();
+        fs.open(file_name, std::ios_base::out | std::ios_base::trunc);
+        if(!fs.is_open()) {
+            yError() << "Could not open output file" << file_name;
+            return false;
+        } else {
+            yInfo() << "Saving data to file" << file_name;
+        }
+    }
+
 
     // if(!scopePort.open(getName() + "/scope:o"))
     //     return false;
@@ -333,7 +344,14 @@ void delayControl::onStop()
     // event_output_port.close();
     // raw_output_port.close();
     debug_port.close();
-    // scopePort.close();
+
+    if(fs.is_open()) 
+    {
+        yInfo() << "Writing data";
+        for(auto i : data_to_save)
+            fs << i[0] << " " << i[1] << " " << i[2] << " " << i[3] << std::endl;
+        fs.close();
+    }
 }
 
 void delayControl::pause()
@@ -374,6 +392,7 @@ void delayControl::run()
         if(time_offset < 0) time_offset = ystamp.getTime();
         channel = (*q)[0].channel;
     }
+    double latency_offset = yarp::os::Time::now();
     
 
     //initialise the position
@@ -453,16 +472,21 @@ void delayControl::run()
         if(vpf.maxlikelihood < detectionThreshold)
             is_tracking = 0;
 
-        double delta_x = avgx - px;
-        double delta_y = avgy - py;
-        double dpos = sqrt(delta_x * delta_x + delta_y * delta_y);
-        if(dpos > output_sample_delta) {
-            px = avgx;
-            py = avgy;
-            pr = avgr;
+        //to compute the delay here, we should probably have the
+        double real_time_passed = yarp::os::Time::now() - latency_offset;
+        double data_time_passed = ystamp.getTime() - time_offset;
+        data_to_save.push_back({data_time_passed - start_time, avgx, avgy, real_time_passed - data_time_passed});
 
-            double tw = qROI.q.front().ts - qROI.q.back().ts;
-            if(tw < 0) tw += ev::max_stamp;
+        // double delta_x = avgx - px;
+        // double delta_y = avgy - py;
+        // double dpos = sqrt(delta_x * delta_x + delta_y * delta_y);
+        // if(dpos > output_sample_delta) {
+        //     px = avgx;
+        //     py = avgy;
+        //     pr = avgr;
+
+        //     double tw = qROI.q.front().ts - qROI.q.back().ts;
+        //     if(tw < 0) tw += ev::max_stamp;
 
             //output our event
             // if(event_output_port.getOutputCount()) {
@@ -503,7 +527,7 @@ void delayControl::run()
             // }
 
 
-        }
+        //}
 
     }
 

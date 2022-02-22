@@ -23,6 +23,8 @@
 #include "vParticle.h"
 #include <mutex>
 #include <deque>
+#include <array>
+#include <deque>
 
 
 /*////////////////////////////////////////////////////////////////////////////*/
@@ -80,6 +82,8 @@ private:
     double dr;
     double px, py, pr;
     ev::benchmark cpuusage;
+    std::deque< std::array<double, 4> > data_to_save;
+    std::ofstream fs;
 
 public:
 
