@@ -196,6 +196,16 @@ int roiq::add(const AE &v)
 
 bool delayControl::configure(yarp::os::ResourceFinder &rf)
 {
+
+    if(rf.check("h") || rf.check("H")) 
+    {
+        yInfo() << "--name";
+        yInfo() << "--height, --width";
+        yInfo() << "--gain, --adaptive, --variance";
+        yInfo() << "--particles (20), --threads (1)";
+        yInfo() << "--seed \"(x, y, r)\", --start_time <s>, --file <full_path>";
+        return false;
+    }
     //module name and control
     setName((rf.check("name", Value("/vpf")).asString()).c_str());
     if(!rpcPort.open(getName() + "/cmd")) {
