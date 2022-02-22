@@ -219,8 +219,8 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
 
     //options and parameters
     px = py = pr = 0;
-    res.height = rf.check("height", Value(240)).asInt();
-    res.width = rf.check("width", Value(304)).asInt();
+    res.height = rf.check("height", Value(480)).asInt();
+    res.width = rf.check("width", Value(640)).asInt();
     gain = rf.check("gain", Value(0.01)).asDouble();
     batch_size = rf.check("batch", Value(0)).asInt();
     bool adaptivesampling = rf.check("adaptive") &&
@@ -247,7 +247,7 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
         vpf.resetToSeed();
     }
 
-    start_time = rf.check("start_time", Value(-1.0)).asDouble();
+    start_time = rf.check("start_time", Value(0.0)).asDouble();
 
     if(rf.check("file")) {
         std::string file_name = rf.find("file").asString();
@@ -320,7 +320,7 @@ bool delayControl::updateModule()
 
 double delayControl::getPeriod()
 {
-    return 0.2;
+    return 0.05;
 }
 
 void delayControl::setTrueThreshold(double value)
@@ -367,6 +367,7 @@ void delayControl::onStop()
         for(auto i : data_to_save)
             fs << i[0] << " " << i[1] << " " << i[2] << " " << i[3] << std::endl;
         fs.close();
+        yInfo() << "Finished Writing data";
     }
 }
 
@@ -401,7 +402,7 @@ void delayControl::run()
     ev::packet<AE> *q = nullptr;
     int channel = 0;
     double time_offset = -1.0;
-    while(ystamp.getTime()-time_offset < start_time) {
+    while(ystamp.getTime()-time_offset <= start_time) {
         q = input_port.read();
         if(!q || Thread::isStopping()) return;
         input_port.getEnvelope(ystamp);
@@ -491,7 +492,8 @@ void delayControl::run()
         //to compute the delay here, we should probably have the
         double real_time_passed = yarp::os::Time::now() - latency_offset;
         double data_time_passed = ystamp.getTime() - time_offset;
-        data_to_save.push_back({data_time_passed - start_time, avgx, avgy, real_time_passed - data_time_passed});
+        if(fs.is_open())
+            data_to_save.push_back({data_time_passed - start_time, avgx, avgy, real_time_passed - data_time_passed});
 
         // double delta_x = avgx - px;
         // double delta_y = avgy - py;
