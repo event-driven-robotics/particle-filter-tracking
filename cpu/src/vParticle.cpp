@@ -312,11 +312,11 @@ double vParticlefilter::initialiseAsEllipse(double r)
             double dx = (pow(x, 2) - 2 * r * x + pow(r, 2)) / pow((a) / 2, 2);
             double dy = (pow(y, 2) - 2 * r * y + pow(r, 2)) / pow((b) / 2, 2);
             double value = sqrt(dx*dx + dy*dy);
-            if (value > 0.8 && value < 1.2) {
+            if (value > 0.5 && value < 1.5) {
                 appearance(y, x) = 1.0;
                 max_likelihood += appearance(y, x);
-            } else if (value <= 0.8) {
-                appearance(y, x) = -1;
+            } else if (value <= 0.5) {
+                appearance(y, x) = -2;
                 
             }
            // else
@@ -501,7 +501,7 @@ void templatedParticle::predict(double sigma)
 {
     state[x] = generateUniformNoise(state[x], sigma);
     state[y] = generateUniformNoise(state[y], sigma);
-    state[s] = generateUniformNoise(state[s], 0.05);
+    state[s] = generateUniformNoise(state[s], 0.1);
 
     if(constrain) checkConstraints();
 

@@ -225,13 +225,13 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
     batch_size = rf.check("batch", Value(0)).asInt();
     bool adaptivesampling = rf.check("adaptive") &&
             rf.check("adaptive", yarp::os::Value(true)).asBool();
-    motionVariance = rf.check("variance", yarp::os::Value(2.0)).asDouble();
+    motionVariance = rf.check("variance", yarp::os::Value(3.0)).asDouble();
     output_sample_delta = rf.check("output_sample", Value(0)).asDouble();
     bool start = rf.check("start") &&
             rf.check("start", yarp::os::Value(true)).asBool();
 
     maxRawLikelihood = vpf.initialise(res.width, res.height,
-                   rf.check("particles", yarp::os::Value(20)).asInt(),
+                   rf.check("particles", yarp::os::Value(100)).asInt(),
                    adaptivesampling,
                    rf.check("threads", Value(1)).asInt());
 
@@ -302,18 +302,18 @@ bool delayControl::updateModule()
     // }
 
     //output the debug image if connected
-    // if(debug_port.getOutputCount()) {
-    //     ImageOf<PixelBgr> &image = debug_port.prepare();
+    if(debug_port.getOutputCount()) {
+        ImageOf<PixelBgr> &image = debug_port.prepare();
 
-    //     m.lock();
-    //     image.resize(res.width, res.height);
-    //     image.zero();
-    //     drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
-    //     drawEvents(image, qROI.q);
-    //     m.unlock();
+        m.lock();
+        image.resize(res.width, res.height);
+        image.zero();
+        drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+        drawEvents(image, qROI.q);
+        m.unlock();
 
-    //     debug_port.write();
-    // }
+        debug_port.write();
+    }
 
     return Thread::isRunning();
 }
@@ -494,15 +494,15 @@ void delayControl::run()
         vpf.extractTargetPosition(avgx, avgy, avgr);
         dx = avgx - dx; dy = avgy - dy; dr = avgr - dr;
 
-        if (debug_port.getOutputCount()) {
-            ImageOf<PixelBgr> &image = debug_port.prepare();
-            image.resize(res.width, res.height);
-            image.zero();
-            drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
-            drawEvents(image, qROI.q);
-            debug_port.write();
-        }
-        yarp::os::Time::delay(0.05);
+        // if (debug_port.getOutputCount()) {
+        //     ImageOf<PixelBgr> &image = debug_port.prepare();
+        //     image.resize(res.width, res.height);
+        //     image.zero();
+        //     drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+        //     drawEvents(image, qROI.q);
+        //     debug_port.write();
+        // }
+        //yarp::os::Time::delay(0.05);
 
         Tresample = yarp::os::Time::now();
         vpf.performResample();
