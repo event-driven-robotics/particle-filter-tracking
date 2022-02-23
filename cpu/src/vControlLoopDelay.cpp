@@ -415,7 +415,7 @@ void delayControl::run()
             qROI.add(v);
     }
 
-    double latency_offset = yarp::os::Time::now();
+    
 
     if (batch_size)
         qROI.setSize(batch_size);
@@ -460,14 +460,17 @@ void delayControl::run()
         Tgetwindow = yarp::os::Time::now();
         unsigned int addEvents = 0;
         unsigned int testedEvents = 0;
+        static double latency_offset = yarp::os::Time::now();
         while(addEvents < targetproc) {
 
             //if we ran out of events get a new queue
             if(i >= q->size()) {
                 i = 0;
                 q = input_port.read();
-                if(!q || Thread::isStopping())
+                if(!q || Thread::isStopping()) {
+                    m.unlock();
                     return;
+                }
                 input_port.getEnvelope(ystamp);
             }
 
@@ -520,7 +523,7 @@ void delayControl::run()
         double real_time_passed = yarp::os::Time::now() - latency_offset;
         double data_time_passed = ystamp.getTime() - time_offset;
         if(fs.is_open())
-            data_to_save.push_back({data_time_passed - start_time, avgx, avgy, real_time_passed - data_time_passed});
+            data_to_save.push_back({data_time_passed, avgx, avgy, real_time_passed - data_time_passed});
 
         // double delta_x = avgx - px;
         // double delta_y = avgy - py;
