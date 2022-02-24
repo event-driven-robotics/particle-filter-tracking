@@ -402,6 +402,8 @@ void delayControl::run()
     qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
 
     //read some data to extract the channel
+    if (fs.is_open())
+        data_to_save.push_back({start_time, avgx, avgy, 0.0});
     ev::packet<AE> *q = nullptr;
     int channel = 0;
     double time_offset = -1.0;
@@ -414,7 +416,6 @@ void delayControl::run()
         for(auto &v : *q)
             qROI.add(v);
     }
-
     
 
     if (batch_size)
@@ -435,7 +436,7 @@ void delayControl::run()
     while(true) {
 
         //calculate error
-        double delay = 0;//input_port.queryDelayT();
+        double delay = 0.0;//input_port.queryDelayT();
         unsigned int unprocdqs = input_port.getPendingReads();
         targetproc = M_PI * avgr;
         if(unprocdqs > 1 && delay > gain)
@@ -460,7 +461,7 @@ void delayControl::run()
         Tgetwindow = yarp::os::Time::now();
         unsigned int addEvents = 0;
         unsigned int testedEvents = 0;
-        static double latency_offset = yarp::os::Time::now();
+        
         while(addEvents < targetproc) {
 
             //if we ran out of events get a new queue
@@ -520,10 +521,9 @@ void delayControl::run()
             is_tracking = 0;
 
         //to compute the delay here, we should probably have the
-        double real_time_passed = yarp::os::Time::now() - latency_offset;
         double data_time_passed = ystamp.getTime() - time_offset;
         if(fs.is_open())
-            data_to_save.push_back({data_time_passed, avgx, avgy, real_time_passed - data_time_passed});
+            data_to_save.push_back({data_time_passed, avgx, avgy, input_port.getPendingReads() * 0.004});
 
         // double delta_x = avgx - px;
         // double delta_y = avgy - py;
