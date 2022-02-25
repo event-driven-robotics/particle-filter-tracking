@@ -56,7 +56,7 @@ private:
 
     //data structures and ports
     yarp::os::Port rpcPort; 
-    ev::BufferedPort<ev::AE> input_port;
+    ev::window<ev::AE> input_port;
     yarp::os::BufferedPort< yarp::sig::ImageOf<yarp::sig::PixelBgr> > debug_port;
     roiq qROI;
     vParticlefilter vpf;

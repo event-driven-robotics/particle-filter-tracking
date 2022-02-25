@@ -275,7 +275,7 @@ bool delayControl::configure(yarp::os::ResourceFinder &rf)
         return false;
 
     //input_port.setQLimit(rf.check("qlimit", Value(0)).asInt());
-    if(!input_port.open(getName() + "/AE:i"))
+    if(!input_port.open(getName("/AE:i")))
         return false;
 
     yarp::os::Network::connect("/atis3/AE:o", getName("/AE:i"), "fast_tcp");
@@ -305,9 +305,10 @@ bool delayControl::updateModule()
     if(debug_port.getOutputCount()) {
         ImageOf<PixelBgr> &image = debug_port.prepare();
 
-        m.lock();
+        
         image.resize(res.width, res.height);
         image.zero();
+        m.lock();
         drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
         drawEvents(image, qROI.q);
         m.unlock();
@@ -356,9 +357,7 @@ yarp::sig::Vector delayControl::getTrackingStats()
 
 void delayControl::onStop()
 {
-    input_port.close();
-    // event_output_port.close();
-    // raw_output_port.close();
+    input_port.stop();
     debug_port.close();
 
     if(fs.is_open()) 
@@ -369,6 +368,7 @@ void delayControl::onStop()
         fs.close();
         yInfo() << "Finished Writing data";
     }
+
 }
 
 void delayControl::pause()
@@ -383,147 +383,151 @@ void delayControl::resume()
 
 void delayControl::run()
 {
-    double Tresample = 0;
-    double Tpredict = 0;
-    double Tlikelihood = 0;
-    double Tgetwindow = 0;
-
-    targetproc = 0;
-    unsigned int i = 0;
-    yarp::os::Stamp ystamp{-1, -1.0};
-    double nw = 0;
-
+    
     //initialise the position
     vpf.extractTargetPosition(avgx, avgy, avgr);
-    double roisize = avgr + 10;
-
-    //set the qROI first ROI and also fill it in.
-    //qROI.setROI(0, res.width, 0, res.height);
+    double roisize = avgr + 20;
     qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
 
     //read some data to extract the channel
     if (fs.is_open())
         data_to_save.push_back({start_time, avgx, avgy, 0.0});
-    ev::packet<AE> *q = nullptr;
-    int channel = 0;
+
     double time_offset = -1.0;
-    while(ystamp.getTime()-time_offset <= start_time) {
-        q = input_port.read();
-        if(!q || Thread::isStopping()) return;
-        input_port.getEnvelope(ystamp);
-        if(time_offset < 0) time_offset = ystamp.getTime();
-        channel = (*q)[0].channel;
-        for(auto &v : *q)
-            qROI.add(v);
+    double time_now = -1.0;
+    while(time_now-time_offset <= start_time) {
+        ev::info read_stats = input_port.readChunkN(1);
+        if(input_port.isStopping()) return;
+        time_now = input_port.begin().packetTime();
+        if(time_offset < 0) {
+            time_offset = input_port.begin().packetTime();
+        }
+
+        m.lock();
+        for(auto a = input_port.begin(); a != input_port.end(); a++) {
+            qROI.add(*a);
+        }
+        m.unlock();
     }
     
-
+    m.lock();
     if (batch_size)
         qROI.setSize(batch_size);
     else
         qROI.setSize(300);
+    m.unlock();
 
-    //test here that when we start, we have the correct position, time, and size.
-    if (debug_port.getOutputCount()) {
-        ImageOf<PixelBgr> &image = debug_port.prepare();
-        image.resize(res.width, res.height);
-        image.zero();
-        //drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
-        drawEvents(image, qROI.q);
-        debug_port.write();
-    }
+    double nw = 0;
+    unsigned int addEvents = 0;
+    unsigned int testedEvents = 0;
+
+    targetproc = M_PI * avgr;
 
     while(true) {
 
-        //calculate error
-        double delay = 0.0;//input_port.queryDelayT();
-        unsigned int unprocdqs = input_port.getPendingReads();
-        targetproc = M_PI * avgr;
-        if(unprocdqs > 1 && delay > gain)
-            targetproc *= (delay / gain);
+        if(input_port.isStopping())
+            break;
 
-        //update the ROI
+        input_port.readChunkN(1);
+
         m.lock();
+        for(auto a = input_port.begin(); a != input_port.end(); a++) {  
+            addEvents += qROI.add(*a);
+            if(addEvents > targetproc) 
+            {
+                addEvents = 0;
+                if (batch_size) qROI.setSize(batch_size);
+                m.unlock();
+                vpf.performObservation(qROI.q);
+                vpf.extractTargetWindow(nw);
+                vpf.extractTargetPosition(avgx, avgy, avgr);
+                vpf.performResample();
+                vpf.performPrediction(motionVariance);
 
-        //from the previous update resize if needed
-        roisize = avgr + 20;
-        qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
+                roisize = avgr + 20;
+                qROI.setROI(avgx - roisize, avgx + roisize, avgy - roisize, avgy + roisize);
 
-        //set our new window #events
-        if(!batch_size) {
-            if(qROI.q.size() - nw > 30)
-                qROI.setSize(std::max(nw, 300.0));
-            if(qROI.q.size() > 3000)
-                qROI.setSize(3000);
-        }
-
-        //add new events to the ROI
-        Tgetwindow = yarp::os::Time::now();
-        unsigned int addEvents = 0;
-        unsigned int testedEvents = 0;
-        
-        while(addEvents < targetproc) {
-
-            //if we ran out of events get a new queue
-            if(i >= q->size()) {
-                i = 0;
-                q = input_port.read();
-                if(!q || Thread::isStopping()) {
-                    m.unlock();
-                    return;
+                // set our new window #events
+                m.lock();
+                if (!batch_size) {
+                    if (qROI.q.size() - nw > 30)
+                        qROI.setSize(std::max(nw, 300.0));
+                    if (qROI.q.size() > 2000)
+                        qROI.setSize(2000);
                 }
-                input_port.getEnvelope(ystamp);
+
+                if (fs.is_open())
+                    data_to_save.push_back({a.packetTime() - time_offset, avgx, avgy, input_port.duration()});
             }
-
-            addEvents += qROI.add((*q)[i]);
-            testedEvents++;
-            i++;
         }
-        Tgetwindow = yarp::os::Time::now() - Tgetwindow;
-
-        //if using a batch fix the size to the batch size ALWAYS
-        if(batch_size)
-            qROI.setSize(batch_size);
-
         m.unlock();
+        
 
-        //update the particle weights
-        Tlikelihood = yarp::os::Time::now();
-        vpf.performObservation(qROI.q);
-        Tlikelihood = yarp::os::Time::now() - Tlikelihood;
 
-        //extract the state
-        vpf.extractTargetWindow(nw);
-        dx = avgx, dy = avgy, dr = avgr;
-        vpf.extractTargetPosition(avgx, avgy, avgr);
-        dx = avgx - dx; dy = avgy - dy; dr = avgr - dr;
+        
 
-        // if (debug_port.getOutputCount()) {
-        //     ImageOf<PixelBgr> &image = debug_port.prepare();
-        //     image.resize(res.width, res.height);
-        //     image.zero();
-        //     drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
-        //     drawEvents(image, qROI.q);
-        //     debug_port.write();
+        
+        // while(addEvents < targetproc) {
+
+        //     //if we ran out of events get a new queue
+        //     if(i >= q->size()) {
+        //         i = 0;
+        //         q = input_port.read();
+        //         if(!q || Thread::isStopping()) {
+        //             m.unlock();
+        //             return;
+        //         }
+        //         input_port.getEnvelope(ystamp);
+        //     }
+
+        //     addEvents += qROI.add((*q)[i]);
+        //     testedEvents++;
+        //     i++;
         // }
-        //yarp::os::Time::delay(0.05);
+        // Tgetwindow = yarp::os::Time::now() - Tgetwindow;
 
-        Tresample = yarp::os::Time::now();
-        vpf.performResample();
-        Tresample = yarp::os::Time::now() - Tresample;
+        // //if using a batch fix the size to the batch size ALWAYS
 
-        Tpredict = yarp::os::Time::now();
-        vpf.performPrediction(motionVariance);
-        Tpredict = yarp::os::Time::now() - Tpredict;
 
-        int is_tracking = 1;
-        if(vpf.maxlikelihood < detectionThreshold)
-            is_tracking = 0;
+        // m.unlock();
 
-        //to compute the delay here, we should probably have the
-        double data_time_passed = ystamp.getTime() - time_offset;
-        if(fs.is_open())
-            data_to_save.push_back({data_time_passed, avgx, avgy, input_port.getPendingReads() * 0.004});
+        // //update the particle weights
+        // Tlikelihood = yarp::os::Time::now();
+        // vpf.performObservation(qROI.q);
+        // Tlikelihood = yarp::os::Time::now() - Tlikelihood;
+
+        // //extract the state
+        // vpf.extractTargetWindow(nw);
+        // dx = avgx, dy = avgy, dr = avgr;
+        // vpf.extractTargetPosition(avgx, avgy, avgr);
+        // dx = avgx - dx; dy = avgy - dy; dr = avgr - dr;
+
+        // // if (debug_port.getOutputCount()) {
+        // //     ImageOf<PixelBgr> &image = debug_port.prepare();
+        // //     image.resize(res.width, res.height);
+        // //     image.zero();
+        // //     drawTemplate(image, vpf.appearance, avgx, avgy, avgr);
+        // //     drawEvents(image, qROI.q);
+        // //     debug_port.write();
+        // // }
+        // //yarp::os::Time::delay(0.05);
+
+        // Tresample = yarp::os::Time::now();
+        // vpf.performResample();
+        // Tresample = yarp::os::Time::now() - Tresample;
+
+        // Tpredict = yarp::os::Time::now();
+        // vpf.performPrediction(motionVariance);
+        // Tpredict = yarp::os::Time::now() - Tpredict;
+
+        // int is_tracking = 1;
+        // if(vpf.maxlikelihood < detectionThreshold)
+        //     is_tracking = 0;
+
+        // //to compute the delay here, we should probably have the
+        // double data_time_passed = ystamp.getTime() - time_offset;
+        // if(fs.is_open())
+        //     data_to_save.push_back({data_time_passed, avgx, avgy, input_port.getPendingReads() * 0.004});
 
         // double delta_x = avgx - px;
         // double delta_y = avgy - py;

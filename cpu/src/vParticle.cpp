@@ -101,7 +101,7 @@ double vParticlefilter::initialise(int width, int height, int nparticles,
 
     const static double circ_base_radius = 15.0;
     vector<double> mins = {0.0, 0.0, circ_base_radius/25.5}; //largest diameter (51)
-    vector<double> maxs = {(double)res.width, (double)res.height, circ_base_radius/4.5}; //smallest diameter (9)
+    vector<double> maxs = {(double)res.width, (double)res.height, circ_base_radius/6}; //smallest diameter (9)
     p.setConstraints(mins, maxs);
 
     double max_likelihood = initialiseAsEllipse(circ_base_radius);
@@ -318,7 +318,10 @@ double vParticlefilter::initialiseAsEllipse(double r)
             } else if (value <= 0.5) {
                 appearance(y, x) = -2;
                 
-            }
+            } 
+            // else if(value > 1.5)
+            //     appearance(y, x) = -0.5;
+        
            // else
             //    appearance = 0;
 
