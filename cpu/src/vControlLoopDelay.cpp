@@ -457,7 +457,7 @@ void delayControl::run()
                 }
 
                 if (fs.is_open())
-                    data_to_save.push_back({a.packetTime() - time_offset, avgx, avgy, input_port.duration()});
+                    data_to_save.push_back({a.packetTime() - time_offset, avgx, avgy, input_port.getUnprocessedDelay()});
             }
         }
         m.unlock();
